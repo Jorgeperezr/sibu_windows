@@ -46,6 +46,46 @@ seguridad. Si eso falla, no se publica el zip.
 levanta el servidor, hace la copia de seguridad del día y abre el navegador
 **cuando el servidor ya responde**.
 
+### Trabajar entre varios por la WiFi de la oficina
+
+Cada carpeta, sola, es un SIBU aislado: lo que registra una compañera no lo
+ve nadie más. Para trabajar juntos, **un computador guarda los datos** y los
+demás entran desde los suyos por la misma red WiFi. No hace falta servidor ni
+instalar nada.
+
+**En el computador que guardará los datos** (uno que esté encendido mientras
+se trabaja):
+
+1. Doble clic en **`Compartir SIBU en la red`**. Queda guardado: desde
+   entonces su icono «SIBU» arranca siempre así.
+2. La primera vez Windows pregunta si deja a Python usar la red: marque
+   **Redes privadas** y pulse *Permitir acceso*. Si la WiFi está marcada como
+   *Pública*, cámbiela a *Privada* (*Configuración → Red e Internet*).
+3. La ventana muestra la dirección que hay que dictar a los compañeros, por
+   ejemplo `http://RECEPCION:8000`. **No cierre esa ventana ni apague o
+   suspenda el equipo** mientras los demás trabajen: los datos están ahí.
+
+**En el computador de cada compañero:**
+
+1. Doble clic en **`Conectar al SIBU de la oficina`** y escriba esa dirección.
+   Queda guardada: desde entonces su icono «SIBU» abre el de la oficina.
+2. Entra con la cuenta que le dio Administración General.
+
+Para volver a usar SIBU solo en un equipo: en el servidor, borre
+`portable\compartir_en_red.txt`; en un compañero, abra *Conectar…* y escriba
+`NINGUNO`.
+
+> **Solo en la WiFi propia de la oficina, con contraseña.** El tráfico va sin
+> cifrar: en una red compartida —la WiFi de la universidad, con estudiantes
+> conectados— alguien podría ver contraseñas y datos clínicos, incluida la
+> contraseña de Psicología. Para trabajar desde fuera de la oficina, o en una
+> red que no es solo de la Unidad, está la red privada cifrada de
+> [`docs/CONEXION_ENTRE_PORTABLES.md`](docs/CONEXION_ENTRE_PORTABLES.md).
+
+**Nunca** copie ni sincronice `datos\sibu.sqlite3` entre computadores para
+«compartir»: rompe el sello de Psicología —el archivo se abre con cualquier
+visor— y las copias acaban diciendo cosas distintas sobre la misma persona.
+
 ### La primera cuenta, y las demás
 
 La primera vez el navegador se abre en *Bienvenido a SIBU*. **La primera

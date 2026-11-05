@@ -79,6 +79,50 @@ jobs:
           Stop-Process -Id $p.Id -Force
           Write-Host "SIBU arrancó en Windows y la primera cuenta se creó por la pantalla." -ForegroundColor Green
 
+      - name: Compartir en la red y conectarse desde otro equipo
+        run: |
+          $env:PYTHONUTF8 = "1"
+          # Un equipo comparte SIBU en la red (puerto fijo 8000, todas las
+          # interfaces) y otro se conecta con «Conectar al SIBU de la oficina».
+          # Se entra por la IP de red del runner: para SIBU es igual que llegar
+          # desde otro computador de la WiFi.
+          $p = Start-Process -FilePath "python\python.exe" `
+                 -ArgumentList "portable\arrancar.py","--modo-servidor","--sin-navegador" `
+                 -RedirectStandardOutput servidor.log -RedirectStandardError servidor.err `
+                 -PassThru -NoNewWindow
+          $listo = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            $tcp = New-Object System.Net.Sockets.TcpClient
+            try { $tcp.Connect("127.0.0.1", 8000); $listo = $true } catch { } finally { $tcp.Close() }
+            if ($listo) { break }
+          }
+          Get-Content servidor.log -Encoding UTF8
+          if (-not $listo) { throw "El modo servidor no levantó" }
+
+          $ip = (Get-NetIPAddress -AddressFamily IPv4 |
+                 Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+                 Select-Object -First 1).IPAddress
+          Write-Host "IP de red del equipo: $ip"
+
+          $r = Invoke-WebRequest "http://${ip}:8000/cuentas/login/" -UseBasicParsing
+          if ($r.Content -notmatch "Ingresar") { throw "Desde la red no se ve el ingreso" }
+
+          $bloqueada = $false
+          try { Invoke-WebRequest "http://${ip}:8000/cuentas/primera/" -UseBasicParsing | Out-Null }
+          catch { if ($_.Exception.Response.StatusCode.value__ -eq 404) { $bloqueada = $true } }
+          if (-not $bloqueada) { throw "La primera cuenta se podría reclamar desde la red" }
+
+          # El lanzador del compañero, con la dirección escrita por teclado.
+          "http://${ip}:8000" | cmd /c "Conectar al SIBU de la oficina.bat"
+          if ($LASTEXITCODE -ne 0) { throw "El cliente no llegó al SIBU compartido" }
+          $guardada = (Get-Content portable\servidor.txt -Raw).Trim()
+          if ($guardada -ne "http://${ip}:8000") { throw "servidor.txt quedó con «$guardada»" }
+
+          Stop-Process -Id $p.Id -Force
+          Remove-Item portable\servidor.txt, servidor.log, servidor.err -Force -ErrorAction SilentlyContinue
+          Write-Host "Compartido por la red y usado desde la IP del equipo." -ForegroundColor Green
+
       - name: Copia de seguridad en Windows
         run: |
           $env:PYTHONUTF8 = "1"
@@ -90,6 +134,8 @@ jobs:
           # Lo que se creó en la prueba (base, clave, copias) no viaja.
           Remove-Item -Recurse -Force datos -ErrorAction SilentlyContinue
           Remove-Item -Force arranque.log, arranque.err -ErrorAction SilentlyContinue
+          # Ni el modo servidor ni la dirección de un cliente viajan en el zip.
+          Remove-Item -Force portable\compartir_en_red.txt, portable\servidor.txt -ErrorAction SilentlyContinue
           $fuera = @(".git", ".github", ".devcontainer", "docker", "docker-compose.prod.yml", "Makefile")
           New-Item -ItemType Directory -Force SIBU | Out-Null
           Get-ChildItem -Force | Where-Object { $_.Name -ne "SIBU" -and $fuera -notcontains $_.Name } |

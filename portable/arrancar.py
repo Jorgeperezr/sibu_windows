@@ -42,6 +42,16 @@ ANFITRION = "127.0.0.1"
 # segundo instalador.
 ARCHIVO_SERVIDOR = RAIZ / "portable" / "servidor.txt"
 
+# Si existe, este computador hace de servidor para la oficina. Se guarda en la
+# carpeta —y no solo como opción de la línea de órdenes— para que el icono
+# «SIBU», que arranca sin opciones, haga siempre lo mismo: si no, en el equipo
+# servidor el icono abriría SIBU solo para él y los demás se quedarían fuera.
+ARCHIVO_MODO_SERVIDOR = RAIZ / "portable" / "compartir_en_red.txt"
+
+
+def es_modo_servidor() -> bool:
+    return ARCHIVO_MODO_SERVIDOR.exists()
+
 
 def servidor_central() -> str | None:
     """
@@ -61,13 +71,27 @@ def servidor_central() -> str | None:
         direccion = linea.strip()
         if not direccion or direccion.startswith("#"):
             continue
-        if "://" not in direccion:
-            # http y no https: una instancia en la red privada no suele tener
-            # certificado, y https contra un servidor que habla http no abre
-            # nada. Con nombre público se escribe el esquema en el archivo.
-            direccion = f"http://{direccion}"
-        return direccion.rstrip("/")
+        return normalizar_direccion(direccion)
     return None
+
+
+def normalizar_direccion(direccion: str) -> str:
+    """
+    `RECEPCION:8000` → `http://RECEPCION:8000`, venga del archivo o de la
+    línea de órdenes.
+
+    Se normalizaba solo lo leído de `servidor.txt`: pasada con `--servidor`,
+    la misma dirección sin esquema se tomaba por esquema «RECEPCION» y el
+    arranque daba el servidor por caído estando en pie.
+
+    http y no https: un SIBU compartido en la oficina no tiene certificado, y
+    https contra un servidor que habla http no abre nada. Con nombre público
+    se escribe el esquema completo.
+    """
+    direccion = direccion.strip()
+    if "://" not in direccion:
+        direccion = f"http://{direccion}"
+    return direccion.rstrip("/")
 
 
 def responde(url: str, segundos: float = 4.0) -> bool:
@@ -91,6 +115,42 @@ def responde(url: str, segundos: float = 4.0) -> bool:
         return False
 
 
+# Modo servidor: un computador de la oficina atiende a los demás por la WiFi.
+# El puerto es FIJO —los compañeros lo escriben una vez en su carpeta— y se
+# escucha en todas las interfaces, no solo en el propio equipo.
+PUERTO_SERVIDOR = 8000
+ESCUCHA_SERVIDOR = "0.0.0.0"
+
+
+def direcciones_de_red() -> list[str]:
+    """
+    El nombre de este computador y sus IP en la red local.
+
+    Se anuncia primero el NOMBRE: en una WiFi la IP la reparte el router y
+    puede cambiar de un día a otro, y entonces la dirección que los compañeros
+    guardaron deja de valer. El nombre del equipo no cambia. La IP va también,
+    por si la red no resuelve nombres.
+    """
+    nombre = socket.gethostname()
+    direcciones = [nombre]
+    ips = set()
+    # La IP con la que este equipo sale a la red. Conectar un socket UDP no
+    # envía nada: solo hace que el sistema elija la interfaz de salida.
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))
+            ips.add(s.getsockname()[0])
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(nombre, None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    ips = sorted(ip for ip in ips if not ip.startswith("127."))
+    return direcciones + ips
+
+
 def puerto_libre(preferido: int | None = None) -> int:
     """
     Un puerto que nadie esté usando.
@@ -106,7 +166,47 @@ def puerto_libre(preferido: int | None = None) -> int:
         return s.getsockname()[1]
 
 
-def preparar_django(puerto: int) -> None:
+def puerto_disponible(puerto: int) -> bool:
+    """¿Se puede escuchar en ese puerto en todas las interfaces?"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((ESCUCHA_SERVIDOR, puerto))
+        except OSError:
+            return False
+    return True
+
+
+def anunciar_servidor(direcciones: list[str], puerto: int) -> None:
+    """
+    Lo que los compañeros tienen que escribir, y la advertencia de la WiFi.
+
+    Se imprime en la ventana del servidor porque es donde está quien tiene que
+    dictarlo. El nombre del equipo va primero: la IP puede cambiar mañana.
+    """
+    print()
+    print("  ============================================================")
+    print("   SIBU está compartido en la red de esta oficina.")
+    print()
+    print("   En el computador de cada compañero, abra «Conectar al SIBU")
+    print("   de la oficina» y escriba esta dirección:")
+    print()
+    for direccion in direcciones:
+        print(f"        http://{direccion}:{puerto}")
+    print()
+    print("   (la primera es el nombre de este equipo; si no funciona, use")
+    print("    la siguiente, que es su número en la red)")
+    print()
+    print("   Mientras los demás trabajen, NO cierre esta ventana ni apague")
+    print("   o suspenda este computador: los datos están aquí.")
+    print()
+    print("   Úselo solo en la WiFi PROPIA de la oficina, con contraseña.")
+    print("   El tráfico va sin cifrar: en una WiFi compartida —la de la")
+    print("   universidad— alguien podría ver contraseñas y datos clínicos.")
+    print("  ============================================================")
+    print()
+
+
+def preparar_django(puerto: int, direcciones: list[str] | None = None) -> None:
     """
     Deja Django listo para arrancar.
 
@@ -114,9 +214,19 @@ def preparar_django(puerto: int) -> None:
     evalúa al cargarlos, y añadirlo después no tendría efecto. Sin él, el
     sistema levanta, todas las páginas responden y el formulario de acceso
     devuelve 403 — el sitio en pie con todo el mundo fuera.
+
+    `direcciones` son el nombre del equipo y sus IP en la red, en modo
+    servidor. Cada una entra en los hosts admitidos y en los orígenes de
+    confianza: un compañero que escribe `http://RECEPCION:8000` y otro que
+    escribe `http://192.168.1.23:8000` llegan al mismo SIBU, y los dos tienen
+    que poder enviar formularios.
     """
+    direcciones = direcciones or []
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.portable")
-    os.environ["SIBU_ORIGENES"] = f"http://{ANFITRION}:{puerto},http://localhost:{puerto}"
+    origenes = [f"http://{ANFITRION}:{puerto}", f"http://localhost:{puerto}"]
+    origenes += [f"http://{d}:{puerto}" for d in direcciones]
+    os.environ["SIBU_ORIGENES"] = ",".join(origenes)
+    os.environ["SIBU_HOSTS"] = ",".join(direcciones)
 
     import django
 
@@ -216,9 +326,14 @@ def main() -> int:
     parser.add_argument("--sin-navegador", action="store_true", help="No abrir el navegador.")
     parser.add_argument("--detallado", action="store_true", help="Enseñar lo que hace al preparar.")
     parser.add_argument("--servidor", default=None, help="Abrir contra el servidor de la Unidad.")
+    parser.add_argument(
+        "--modo-servidor",
+        action="store_true",
+        help="Atender también a los compañeros de la misma red WiFi.",
+    )
     opciones = parser.parse_args()
 
-    central = opciones.servidor or servidor_central()
+    central = normalizar_direccion(opciones.servidor) if opciones.servidor else servidor_central()
     if central:
         # Modo cliente: no hay base local que preparar ni servidor que levantar.
         print("SIBU — Unidad de Bienestar Universitario · UNL")
@@ -231,12 +346,15 @@ def main() -> int:
             # el aviso queda detrás; pero con el aviso delante, que es lo que
             # convierte un «no funciona» en algo que se puede arreglar.
             print()
-            print("  AVISO: ese servidor no contesta ahora mismo.")
-            print("  Suele ser una de tres cosas:")
-            print("    1. La red privada (NetBird) no está conectada en este")
-            print("       computador. Ábrala y vuelva a intentarlo.")
-            print("    2. El servidor de la Unidad está apagado.")
-            print(f"    3. La dirección de portable/servidor.txt no es la buena: {central}")
+            print("  AVISO: el SIBU de la oficina no contesta ahora mismo.")
+            print("  Suele ser una de estas cosas:")
+            print("    1. En el computador que hace de servidor, SIBU está cerrado")
+            print("       o el equipo está apagado o suspendido.")
+            print("    2. Este computador no está en la misma red WiFi que ese")
+            print("       (o en la red privada NetBird, si la usan).")
+            print("    3. El cortafuegos de Windows del servidor no deja entrar:")
+            print("       la red WiFi tiene que estar marcada como «Privada».")
+            print(f"    4. La dirección guardada no es la buena: {central}")
             print()
             print("  Sus datos no están en esta carpeta, así que no hay nada que")
             print("  perder: cuando la red vuelva, vuelva a pulsar el icono.")
@@ -245,8 +363,20 @@ def main() -> int:
             webbrowser.open(central)
         return 0 if alcanzable else 1
 
-    puerto = puerto_libre(opciones.puerto)
-    preparar_django(puerto)
+    direcciones: list[str] = []
+    escucha = ANFITRION
+    if opciones.modo_servidor or es_modo_servidor():
+        opciones.modo_servidor = True
+        puerto = opciones.puerto or PUERTO_SERVIDOR
+        if not puerto_disponible(puerto):
+            print(f"  El puerto {puerto} ya está en uso en este computador.")
+            print("  ¿Hay otro SIBU abierto? Ciérrelo y vuelva a abrir este.")
+            return 1
+        direcciones = direcciones_de_red()
+        escucha = ESCUCHA_SERVIDOR
+    else:
+        puerto = puerto_libre(opciones.puerto)
+    preparar_django(puerto, direcciones)
 
     print("SIBU — Unidad de Bienestar Universitario · UNL")
     print("Preparando la carpeta…")
@@ -266,6 +396,8 @@ def main() -> int:
         print()
 
     print(f"SIBU está en {url}")
+    if opciones.modo_servidor:
+        anunciar_servidor(direcciones, puerto)
     print("Para cerrarlo, cierre esta ventana o pulse Ctrl+C.")
 
     if not opciones.sin_navegador:
@@ -276,7 +408,7 @@ def main() -> int:
     from config.wsgi import application
 
     try:
-        serve(application, host=ANFITRION, port=puerto, threads=8)
+        serve(application, host=escucha, port=puerto, threads=8)
     except KeyboardInterrupt:
         print("\nSIBU cerrado.")
     return 0

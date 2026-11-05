@@ -56,7 +56,14 @@ DEBUG = False
 SIBU_PORTABLE = True
 
 # Solo el propio computador. El launcher abre el navegador en 127.0.0.1.
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    # En MODO SERVIDOR —un computador de la oficina atiende a los demás por la
+    # WiFi— el launcher añade aquí el nombre del equipo y sus direcciones de
+    # red. Sin él, la lista se queda en el propio computador.
+    *env.list("SIBU_HOSTS", default=[]),
+]
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1",
     "http://localhost",
