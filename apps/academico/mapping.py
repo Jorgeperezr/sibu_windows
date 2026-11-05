@@ -216,6 +216,27 @@ FICHA_SENSIBLE = ["violencia_familiar", "droga_consume", "frecuencia_consumo_dro
 # --- Datos bancarios de beca -> BecaBeneficiario (cifrados) ---
 DATOS_BANCARIOS = ["beca_unl_cuenta_banco", "beca_unl_cuenta_tipo", "beca_unl_cuenta_numero"]
 
+# --- Lo que NO se conserva en la fila cruda ---
+#
+# La pantalla de carga decía que estas columnas iban «(cifrado)» y SIBU no
+# cifra nada: no hay dependencia de cifrado ni custodia de claves. Lo que
+# pasaba era peor que no guardarlas: quedaban en claro en
+# `DatoAcademico.ficha_raw` —la fila completa—, que el panel de administración
+# enseña entera. Religión, orientación sexual, violencia familiar, consumo de
+# drogas y el número de cuenta bancaria de cada estudiante, a la vista de
+# Administración General, que por separación de funciones no ve contenido
+# clínico.
+#
+# Becas ya lo había decidido para las cuentas —«SIBU no almacena datos
+# bancarios»— y la fila cruda lo desmentía en cada carga.
+#
+# Lo operativo no se pierde: las alertas (violencia familiar → Trabajo Social,
+# consumo → Psicología) se calculan leyendo la fila en el momento de la carga,
+# no `ficha_raw`. Lo que se deja de hacer es GUARDAR el dato.
+NO_SE_CONSERVAN = (
+    frozenset(IDENTIDAD_SENSIBLE) | frozenset(FICHA_SENSIBLE) | frozenset(DATOS_BANCARIOS)
+)
+
 # --- Columnas de control del formulario: solo en ficha_raw ---
 CONTROL = ["case", "case-2", "case-3"]
 

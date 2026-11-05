@@ -30,7 +30,7 @@ from . import mapping
 GRUPOS = [
     ("Identificación", "Persona", list(mapping.IDENTIFICACION)),
     ("Datos académicos", "Dato académico", list(mapping.ACADEMICO)),
-    ("Identidad (sensible)", "Persona (cifrado)", list(mapping.IDENTIDAD_SENSIBLE)),
+    ("Identidad (sensible)", "No se guarda", list(mapping.IDENTIDAD_SENSIBLE)),
     ("Salud básica", "Expediente", list(mapping.SALUD_EXPEDIENTE)),
     ("Procedencia", "Persona (JSON)", mapping.PERSONA_JSONB["procedencia"]),
     ("Residencia actual", "Persona (JSON)", mapping.PERSONA_JSONB["residencia_actual"]),
@@ -45,8 +45,8 @@ GRUPOS = [
     ("Bienes y negocio", "Ficha socioeconómica", mapping.FICHA_JSONB["bienes_negocio"]),
     ("Ingresos", "Ficha socioeconómica", mapping.FICHA_JSONB["ingresos"]),
     ("Egresos", "Ficha socioeconómica", mapping.FICHA_JSONB["egresos"]),
-    ("Situaciones sensibles", "Ficha socioeconómica (cifrado)", mapping.FICHA_SENSIBLE),
-    ("Datos bancarios de beca", "Beca (cifrado)", mapping.DATOS_BANCARIOS),
+    ("Situaciones sensibles", "Solo genera la alerta; no se guarda", mapping.FICHA_SENSIBLE),
+    ("Datos bancarios de beca", "No se guarda", mapping.DATOS_BANCARIOS),
     ("Control del formulario", "solo la fila cruda", mapping.CONTROL),
 ]
 

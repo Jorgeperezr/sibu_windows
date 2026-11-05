@@ -115,6 +115,18 @@ class ProcesadorCarga:
         alias = self.mapeo.get(col_canonica, col_canonica)
         return fila.get(alias)
 
+    def _fila_conservable(self, fila: dict) -> dict:
+        """
+        La fila cruda sin lo que SIBU decidió no guardar (`mapping.NO_SE_CONSERVAN`).
+
+        Se quitan por su nombre canónico y por el alias que traiga el archivo:
+        si la columna se llama distinto en la base de un estamento, quitarla solo
+        por el canónico la dejaría pasar con su otro nombre.
+        """
+        fuera = set(mapping.NO_SE_CONSERVAN)
+        fuera |= {self.mapeo.get(c, c) for c in mapping.NO_SE_CONSERVAN}
+        return {k: v for k, v in fila.items() if v is not None and k not in fuera}
+
     def _subdict(self, fila: dict, columnas: list[str]) -> dict:
         return {c: self._get(fila, c) for c in columnas if self._get(fila, c) is not None}
 
@@ -291,7 +303,7 @@ class ProcesadorCarga:
 
         defaults = {campo: (self._get(fila, col) or "") for col, campo in mapping.ACADEMICO.items()}
         defaults["carga"] = self.carga
-        defaults["ficha_raw"] = {k: v for k, v in fila.items() if v is not None}
+        defaults["ficha_raw"] = self._fila_conservable(fila)
         DatoAcademico.objects.update_or_create(
             persona=persona, periodo=self.periodo, defaults=defaults
         )
