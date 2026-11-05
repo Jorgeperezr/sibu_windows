@@ -99,12 +99,28 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": str(CARPETA_DATOS / "sibu.sqlite3"),
+        # Cada petición es una transacción, como en el servidor. `base.py` lo
+        # activa, pero este bloque redefine DATABASES entero y lo PERDÍA: la
+        # portable era el único entorno donde una pantalla que escribe dos
+        # registros y falla entre medias dejaba la mitad guardada. Las pruebas
+        # corren contra PostgreSQL con los ajustes de base, así que no podían
+        # verlo. El código está escrito contando con esto.
+        "ATOMIC_REQUESTS": True,
         "OPTIONS": {
             # WAL y un tiempo de espera: con una sola persona escribiendo no
             # hacen falta, pero el navegador abre varias peticiones a la vez
             # (la página y sus estáticos) y sin esto salta «database is locked»
             # en mitad de un guardado.
-            "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+            #
+            # cache_size negativo son KiB: 20 MB de páginas en memoria en vez
+            # de los 2 MB por omisión, que con un expediente entero se quedaban
+            # cortos. temp_store en memoria para los ORDER BY y los DISTINCT
+            # del informe, que si no escriben archivos temporales en el disco
+            # —una memoria USB, a veces—.
+            "init_command": (
+                "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; "
+                "PRAGMA cache_size=-20000; PRAGMA temp_store=MEMORY;"
+            ),
             "timeout": 20,
         },
     }

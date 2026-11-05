@@ -95,8 +95,8 @@ class SignosVitales(models.Model):
                 | models.Q(temperatura__gte=25, temperatura__lte=45),
                 name="ck_signos_temperatura_plausible",
                 violation_error_message=(
-                    "La temperatura tiene que estar entre 25 y 45 °C. "
-                    "Si escribió 368, quiso decir 36,8."
+                    "La temperatura tiene que estar entre 25 y 45 °C: "
+                    "revise la coma (36,8 y no 368)."
                 ),
             ),
             models.CheckConstraint(
@@ -113,7 +113,7 @@ class SignosVitales(models.Model):
                 condition=models.Q(peso__isnull=True) | models.Q(peso__gt=0, peso__lte=500),
                 name="ck_signos_peso_plausible",
                 violation_error_message=(
-                    "El peso tiene que estar entre 0 y 500 kg. Si escribió 585, quiso decir 58,5."
+                    "El peso tiene que estar entre 0 y 500 kg: revise la coma (58,5 y no 585)."
                 ),
             ),
             # La presión sistólica va por encima de la diastólica; invertirlas

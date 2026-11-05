@@ -39,6 +39,10 @@ class Derivacion(ModeloBase):
     class Meta:
         verbose_name = "derivación"
         verbose_name_plural = "derivaciones"
+        indexes = [
+            # La bandeja de cada servicio: las abiertas hacia él.
+            models.Index(fields=["servicio_destino", "estado"], name="ix_deriv_destino_estado"),
+        ]
 
 
 class ReferenciaExterna(ModeloBase):

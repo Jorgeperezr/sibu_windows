@@ -54,6 +54,10 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 # --- Base de datos ---
 # Conexiones persistentes: abrir una por petición contra PostgreSQL es caro.
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)  # noqa: F405
+# Con conexiones reutilizadas, una que murió —PostgreSQL reiniciado, la red
+# privada caída un momento— se descubría al usarla: la primera petición después
+# respondía 500. Con esto Django la comprueba antes y abre otra.
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True  # noqa: F405
 DATABASES["default"].setdefault("OPTIONS", {})  # noqa: F405
 if env("DB_SSLMODE", default=""):
     DATABASES["default"]["OPTIONS"]["sslmode"] = env("DB_SSLMODE")  # noqa: F405

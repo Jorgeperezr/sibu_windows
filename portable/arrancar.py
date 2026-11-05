@@ -148,6 +148,35 @@ def preparar_carpeta(detallado: bool) -> None:
     # servicio corriendo, y está dicho en `docs/PORTABLE.md`.
     call_command("recordatorios", "--silencioso", verbosity=verbosidad)
 
+    optimizar_base()
+
+    # Una copia al día, la primera vez que se abre SIBU ese día. Sin esto no
+    # había ninguna: perder el disco era perder todas las historias clínicas.
+    # Si falla, se dice y se sigue: no poder respaldar no puede impedir atender.
+    try:
+        call_command("respaldar", "--si-no-hay-de-hoy", verbosity=verbosidad)
+    except Exception as exc:  # noqa: BLE001 - se informa, no se aborta el arranque
+        print(f"  AVISO: no se pudo hacer la copia de seguridad de hoy: {exc}")
+
+
+def optimizar_base() -> None:
+    """
+    Pone al día las estadísticas que SQLite usa para elegir índices.
+
+    SQLite no las recoge solo: sin `ANALYZE`, su planificador decide a ciegas
+    y puede recorrer una tabla entera teniendo un índice al lado. `PRAGMA
+    optimize` hace el análisis únicamente donde hace falta, así que en una
+    carpeta sin cambios no cuesta nada. Es lo que la documentación de SQLite
+    recomienda hacer de vez en cuando en una base de larga vida, y una
+    portable no tiene a nadie que lo haga por ella.
+    """
+    from django.db import connection
+
+    if connection.vendor != "sqlite":
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("PRAGMA optimize")
+
 
 def hay_cuentas() -> bool:
     """

@@ -76,7 +76,7 @@ def resumen_expediente(expediente: Expediente, usuario, break_glass: bool = Fals
 # ============================================================
 
 
-def _valor_institucional(expediente, variable: str) -> str:
+def _valor_institucional(expediente, variable: str, tipos_activos=None) -> str:
     """
     Lo que dice la matrícula sobre esa variable, como texto.
 
@@ -85,7 +85,7 @@ def _valor_institucional(expediente, variable: str) -> str:
     `AlertaClinica` activa o no existen. Se traducen a «Sí»/«No» para poder
     compararlas con un ajuste, que sí es texto.
     """
-    from .models import AjusteDeServicio, AlertaClinica
+    from .models import AjusteDeServicio
 
     V = AjusteDeServicio.Variable
     if variable == V.SEXO:
@@ -100,11 +100,24 @@ def _valor_institucional(expediente, variable: str) -> str:
 
     tipos = {V.GESTACION, V.LACTANCIA, V.ENF_CATASTROFICA, V.NEE}
     if variable in tipos:
-        hay = AlertaClinica.objects.filter(
-            expediente=expediente, tipo=variable, activa=True
-        ).exists()
-        return "Sí" if hay else "No"
+        if tipos_activos is None:
+            tipos_activos = _tipos_de_alerta_activos(expediente)
+        return "Sí" if variable in tipos_activos else "No"
     return ""
+
+
+def _tipos_de_alerta_activos(expediente) -> set[str]:
+    """
+    Los tipos de alerta activos del expediente, en UNA consulta.
+
+    Antes cada una de las cuatro banderas preguntaba por su cuenta si existía:
+    cuatro consultas casi iguales en cada apertura del expediente.
+    """
+    return set(
+        AlertaClinica.objects.filter(expediente=expediente, activa=True).values_list(
+            "tipo", flat=True
+        )
+    )
 
 
 def valores_efectivos(expediente, servicio) -> list[dict]:
@@ -127,9 +140,10 @@ def valores_efectivos(expediente, servicio) -> list[dict]:
             for a in AjusteDeServicio.objects.filter(expediente=expediente, servicio=servicio)
         }
 
+    tipos_activos = _tipos_de_alerta_activos(expediente)
     filas = []
     for codigo, etiqueta in AjusteDeServicio.Variable.choices:
-        institucional = _valor_institucional(expediente, codigo)
+        institucional = _valor_institucional(expediente, codigo, tipos_activos)
         ajuste = ajustes.get(codigo)
         filas.append(
             {

@@ -109,6 +109,11 @@ class Receta(ModeloBase):
     class Meta:
         verbose_name = "receta"
         verbose_name_plural = "recetas"
+        indexes = [
+            # El mostrador: las emitidas o parciales, de la más antigua a la
+            # más nueva. Sin esto, recorre todas las recetas de la historia.
+            models.Index(fields=["estado", "creado_en"], name="ix_receta_estado_creada"),
+        ]
 
 
 class RecetaDetalle(models.Model):

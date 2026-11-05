@@ -26,12 +26,39 @@ def es_admin(user) -> bool:
     return getattr(user, "is_superuser", False) or user.rol_principal == Rol.ADMIN_GENERAL
 
 
+# Atributo donde se recuerdan los servicios ya leídos de un perfil.
+_MEMO_SERVICIOS = "_sibu_servicios_ids"
+
+
 def servicios_del_usuario(user):
-    """IDs de servicios asignados al profesional (vacío si no tiene perfil)."""
+    """
+    IDs de servicios asignados al profesional (vacío si no tiene perfil).
+
+    Se recuerdan en el propio objeto del perfil, que Django ya guarda en
+    `user.perfil` mientras dura la petición. Sin esto, una sola pantalla del
+    expediente preguntaba a la base SEIS veces lo mismo —el menú, las
+    acciones, la línea de tiempo, las alertas—. Medido con el expediente:
+    29 consultas, 6 de ellas esta.
+
+    Se devuelve una copia: quien la reciba puede modificarla sin tocar lo
+    recordado. Y se olvida cuando cambian los servicios del perfil
+    (`olvidar_servicios`, conectado a `m2m_changed`), para que una asignación
+    se vea en el acto aunque el mismo objeto siga vivo.
+    """
     perfil = getattr(user, "perfil", None)
     if perfil is None:
         return set()
-    return set(perfil.servicios.values_list("id", flat=True))
+    memo = getattr(perfil, _MEMO_SERVICIOS, None)
+    if memo is None:
+        memo = frozenset(perfil.servicios.values_list("id", flat=True))
+        setattr(perfil, _MEMO_SERVICIOS, memo)
+    return set(memo)
+
+
+def olvidar_servicios(perfil) -> None:
+    """Descarta lo recordado de `servicios_del_usuario` para este perfil."""
+    if hasattr(perfil, _MEMO_SERVICIOS):
+        delattr(perfil, _MEMO_SERVICIOS)
 
 
 def seccion_del_usuario(user):

@@ -46,3 +46,7 @@ class Notificacion(ModeloBase):
         verbose_name = "notificación"
         verbose_name_plural = "notificaciones"
         ordering = ["-creado_en"]
+        # Sin índice compuesto (usuario, estado) a propósito: se midió con
+        # 20 000 notificaciones y el de la clave foránea `usuario` ya resuelve
+        # el contador de la cabecera igual de rápido. Añadirlo solo encarecía
+        # cada escritura.

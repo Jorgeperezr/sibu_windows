@@ -171,13 +171,15 @@ def _ve_modulo(user, modulo: Modulo, servicios_ids: set, codigos_por_id: dict) -
         # Al menos un servicio NO confidencial. Quien solo atiende en uno
         # sellado no puede exportar nada, y ofrecerle el enlace sería llevarlo
         # a una pantalla que siempre diría «0 atenciones».
-        from apps.core.models import Servicio
+        #
+        # Se responde con `codigos_por_id`, que ya está en memoria y sale del
+        # mismo gestor —sin los servicios dados de baja—, en vez de con una
+        # consulta propia en cada página.
         from apps.usuarios.rbac import SERVICIOS_CONFIDENCIALES
 
-        return (
-            Servicio.objects.filter(pk__in=servicios_ids)
-            .exclude(codigo__in=SERVICIOS_CONFIDENCIALES)
-            .exists()
+        return any(
+            sid in codigos_por_id and codigos_por_id[sid] not in SERVICIOS_CONFIDENCIALES
+            for sid in servicios_ids
         )
     if tipo == "permiso":
         return user.has_perm(dato)
@@ -288,7 +290,7 @@ def acciones_expediente(user):
     return [a for a in ACCIONES_EXPEDIENTE if _ve_modulo(user, a, servicios_ids, codigos_por_id)]
 
 
-def modulos_por_grupo(user):
+def modulos_por_grupo(user, visibles=None):
     """
     Los módulos visibles, agrupados y en el orden en que aparecen.
 
@@ -301,7 +303,7 @@ def modulos_por_grupo(user):
     """
     grupos: list[tuple[str, list]] = []
     indice: dict[str, list] = {}
-    for modulo in modulos_visibles(user):
+    for modulo in modulos_visibles(user) if visibles is None else visibles:
         if modulo.grupo not in indice:
             indice[modulo.grupo] = []
             grupos.append((modulo.grupo, indice[modulo.grupo]))
@@ -310,10 +312,19 @@ def modulos_por_grupo(user):
 
 
 def navegacion(request):
-    """Context processor: expone la navegación en todas las plantillas."""
+    """
+    Context processor: expone la navegación en todas las plantillas.
+
+    Los módulos visibles se calculan UNA vez. Antes `modulos_por_grupo` los
+    volvía a calcular por su cuenta, así que cada página —todas, porque esto
+    corre en cada una— repetía el recorrido del RBAC entero: los servicios del
+    usuario, el catálogo de servicios y la comprobación de los confidenciales,
+    dos veces. Medido: la portada hacía 14 consultas, 6 de ellas repetidas.
+    """
+    visibles = modulos_visibles(request.user)
     return {
-        "nav_modulos": modulos_visibles(request.user),
-        "nav_grupos": modulos_por_grupo(request.user),
+        "nav_modulos": visibles,
+        "nav_grupos": modulos_por_grupo(request.user, visibles),
     }
 
 
