@@ -180,12 +180,23 @@
     a su nombre sobre un paciente que no ha visto. Es lo mismo que ya nos
     pasó con cerrar sesión.
     {% endcomment %}
+    {% if a.crea %}
     <form method="post" action="{% url a.url_name expediente.id %}" class="d-inline">
       {% csrf_token %}
       <button class="btn btn-sm btn-{{ a.variante }}">
         {% if a.icono %}<i class="bi bi-{{ a.icono }}"></i>{% endif %} {{ a.etiqueta }}
       </button>
     </form>
+    {% else %}
+    {% comment %}
+    Las que solo ABREN una pantalla van por enlace. Sus vistas guardan en el
+    POST: mandarles uno vacío desde aquí registraba un triaje en blanco y
+    decía «Signos vitales registrados».
+    {% endcomment %}
+    <a href="{% url a.url_name expediente.id %}" class="btn btn-sm btn-{{ a.variante }}">
+      {% if a.icono %}<i class="bi bi-{{ a.icono }}"></i>{% endif %} {{ a.etiqueta }}
+    </a>
+    {% endif %}
     {% endfor %}
   </div>
 </div>

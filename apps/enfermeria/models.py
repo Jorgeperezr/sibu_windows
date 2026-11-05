@@ -94,18 +94,27 @@ class SignosVitales(models.Model):
                 condition=models.Q(temperatura__isnull=True)
                 | models.Q(temperatura__gte=25, temperatura__lte=45),
                 name="ck_signos_temperatura_plausible",
+                violation_error_message=(
+                    "La temperatura tiene que estar entre 25 y 45 °C. "
+                    "Si escribió 368, quiso decir 36,8."
+                ),
             ),
             models.CheckConstraint(
                 condition=models.Q(sat_o2__isnull=True) | models.Q(sat_o2__lte=100),
                 name="ck_signos_saturacion_hasta_100",
+                violation_error_message="La saturación de oxígeno no puede pasar de 100 %.",
             ),
             models.CheckConstraint(
                 condition=models.Q(talla__isnull=True) | models.Q(talla__gt=0, talla__lte=3),
                 name="ck_signos_talla_en_metros",
+                violation_error_message="La talla va en metros: 1,62 y no 162.",
             ),
             models.CheckConstraint(
                 condition=models.Q(peso__isnull=True) | models.Q(peso__gt=0, peso__lte=500),
                 name="ck_signos_peso_plausible",
+                violation_error_message=(
+                    "El peso tiene que estar entre 0 y 500 kg. Si escribió 585, quiso decir 58,5."
+                ),
             ),
             # La presión sistólica va por encima de la diastólica; invertirlas
             # es el error de captura más común del triaje.
@@ -114,6 +123,9 @@ class SignosVitales(models.Model):
                 | models.Q(pa_diastolica__isnull=True)
                 | models.Q(pa_sistolica__gt=models.F("pa_diastolica")),
                 name="ck_signos_sistolica_mayor_que_diastolica",
+                violation_error_message=(
+                    "La presión sistólica tiene que ser mayor que la diastólica: ¿están invertidas?"
+                ),
             ),
         ]
 

@@ -14,11 +14,19 @@
 <div class="card mb-4">
   <div class="card-header">Registrar toma</div>
   <div class="card-body">
+    {% comment %}
+    Temperatura, peso y talla van como texto con `inputmode="decimal"`, no como
+    `type="number"`. Aquí se escribe «36,8», y el campo numérico de Chromium se
+    COME la coma —en cualquier idioma del navegador—: enviaba 368, 585 y 162.
+    La restricción de la base rechazaba 368 °C y la enfermera veía un error de
+    servidor por escribir lo más normal. Como texto, el valor llega tal cual y
+    lo lee `apps/core/numeros.py`, que es la única lectura de decimales.
+    {% endcomment %}
     <form method="post" class="row g-3">
       {% csrf_token %}
       <div class="col-6 col-md-3">
         <label class="form-label">Temperatura (°C)</label>
-        <input type="number" step="0.1" name="temperatura" class="form-control">
+        <input name="temperatura" class="form-control" inputmode="decimal" placeholder="36,8">
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label">FC (lpm)</label>
@@ -42,11 +50,11 @@
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label">Peso (kg)</label>
-        <input type="number" step="0.01" name="peso" class="form-control">
+        <input name="peso" class="form-control" inputmode="decimal" placeholder="58,5">
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label">Talla (m)</label>
-        <input type="number" step="0.01" name="talla" class="form-control">
+        <input name="talla" class="form-control" inputmode="decimal" placeholder="1,62">
         <div class="form-text">El IMC se calcula solo.</div>
       </div>
       <div class="col-6 col-md-3">

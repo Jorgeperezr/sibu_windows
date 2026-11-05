@@ -216,6 +216,14 @@ class AccionExpediente:
     regla: tuple  # mismo formato que Modulo.regla
     icono: str = ""
     variante: str = "outline-primary"
+    # Si pulsar el botón CREA algo (POST) o solo abre una pantalla (GET).
+    #
+    # Las que crean —abrir una consulta crea la historia en borrador— van por
+    # POST: un GET que escribe se dispara con un `<img src>` ajeno. Pero las que
+    # abren un formulario NO: sus vistas guardan en el POST. Pasarlas todas a
+    # POST hizo que «Triaje» guardara un registro de signos vitales vacío y
+    # dijera «Signos vitales registrados. Disponibles para Medicina».
+    crea: bool = False
 
 
 # Qué se puede iniciar desde un expediente. Igual que MODULOS, la visibilidad
@@ -224,19 +232,32 @@ class AccionExpediente:
 ACCIONES_EXPEDIENTE = [
     AccionExpediente("Triaje", "enfermeria:triaje", ("servicio", "enfermeria"), "clipboard-pulse"),
     AccionExpediente(
-        "Consulta médica", "medicina:iniciar", ("servicio", "medicina"), "stethoscope"
+        "Consulta médica",
+        "medicina:iniciar",
+        ("servicio", "medicina"),
+        "stethoscope",
+        crea=True,
     ),
     AccionExpediente(
-        "Consulta odontológica", "odontologia:iniciar", ("servicio", "odontologia"), "emoji-smile"
+        "Consulta odontológica",
+        "odontologia:iniciar",
+        ("servicio", "odontologia"),
+        "emoji-smile",
+        crea=True,
     ),
     AccionExpediente(
-        "Proceso psicológico", "psicologia:iniciar", ("servicio", "psicologia"), "chat-heart"
+        "Proceso psicológico",
+        "psicologia:iniciar",
+        ("servicio", "psicologia"),
+        "chat-heart",
+        crea=True,
     ),
     AccionExpediente(
         "Ficha psicopedagógica",
         "psicopedagogia:iniciar",
         ("servicio", "psicopedagogia"),
         "book",
+        crea=True,
     ),
     AccionExpediente(
         "Ficha socioeconómica",
