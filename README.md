@@ -138,6 +138,7 @@ no hay nadie a quien llamar.
 
 | | |
 |---|---|
+| [`docs/QUE_FALTA_PARA_DESPLEGAR.md`](docs/QUE_FALTA_PARA_DESPLEGAR.md) | **Lo que está listo, lo que falta y en qué orden.** |
 | [`docs/PORTABLE.md`](docs/PORTABLE.md) | Armar la carpeta, repartirla y qué saber antes de usarla en serio. |
 | [`docs/CONEXION_ENTRE_PORTABLES.md`](docs/CONEXION_ENTRE_PORTABLES.md) | Cómo se conectan los profesionales entre sí. |
 | [`docs/OPERACION.md`](docs/OPERACION.md) | Qué se ejecuta cada día y qué significa lo que responde. |
