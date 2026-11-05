@@ -43,12 +43,17 @@ jobs:
                  -PassThru -NoNewWindow
           $base = "http://127.0.0.1:8765"
           $listo = $false
+          # Se espera al PUERTO, no a una respuesta HTTP concreta. La primera
+          # versión pedía /cuentas/login/ sin seguir redirecciones, y en
+          # PowerShell 5 la redirección a la primera cuenta llega como una
+          # excepción sin respuesta: SIBU estaba sirviendo y la prueba no lo vio.
           for ($i = 0; $i -lt 120; $i++) {
             Start-Sleep -Seconds 2
-            try { Invoke-WebRequest "$base/cuentas/login/" -UseBasicParsing -MaximumRedirection 0 -ErrorAction Stop | Out-Null; $listo = $true; break }
-            catch { if ($_.Exception.Response) { $listo = $true; break } }
+            $tcp = New-Object System.Net.Sockets.TcpClient
+            try { $tcp.Connect("127.0.0.1", 8765); $listo = $true } catch { } finally { $tcp.Close() }
+            if ($listo) { break }
           }
-          Get-Content arranque.log; Get-Content arranque.err
+          Get-Content arranque.log -Encoding UTF8; Get-Content arranque.err -Encoding UTF8
           if (-not $listo) { throw "SIBU no respondió en 4 minutos" }
 
           # Sin cuentas, el ingreso tiene que llevar a crear la primera.
