@@ -306,3 +306,73 @@ def cambiar_clave(request):
         "registration/password_change_form.html",
         {"form": formulario, "temporal": request.user.debe_cambiar_clave},
     )
+
+
+def _es_portable_local(request) -> bool:
+    """
+    Una portable, y la petición viene del propio computador.
+
+    La pantalla de la primera cuenta no existe fuera de ahí: en el servidor de
+    la Unidad, un SIBU recién desplegado y sin cuentas sería de quien llegara
+    primero.
+    """
+    from django.conf import settings
+
+    return getattr(settings, "SIBU_PORTABLE", False) and request.META.get("REMOTE_ADDR") in {
+        "127.0.0.1",
+        "::1",
+    }
+
+
+def primera_cuenta(request):
+    """La primera cuenta de la portable, sin consola."""
+    from django.contrib.auth import login
+    from django.http import Http404
+
+    from .selectors import cuentas_de_persona
+    from .services import crear_primera_cuenta
+
+    if not _es_portable_local(request) or cuentas_de_persona().exists():
+        raise Http404
+
+    datos = {}
+    if request.method == "POST":
+        datos = request.POST
+        if request.POST.get("clave") != request.POST.get("clave2"):
+            messages.error(request, "Las dos contraseñas no coinciden.")
+        else:
+            try:
+                cuenta = crear_primera_cuenta(
+                    cedula=request.POST.get("cedula", ""),
+                    nombres=request.POST.get("nombres", ""),
+                    apellidos=request.POST.get("apellidos", ""),
+                    clave=request.POST.get("clave", ""),
+                )
+            except ValidationError as exc:
+                messages.error(request, "; ".join(exc.messages))
+            else:
+                login(request, cuenta, backend="django.contrib.auth.backends.ModelBackend")
+                messages.success(
+                    request,
+                    "Cuenta creada. Desde «Perfiles → Nueva cuenta» dé de alta "
+                    "al resto del equipo.",
+                )
+                return redirect("inicio")
+
+    return render(request, "registration/primera_cuenta.html", {"datos": datos})
+
+
+def ingresar(request, *args, **kwargs):
+    """
+    El inicio de sesión, salvo en una portable que todavía no tiene cuentas.
+
+    Ahí lleva a crear la primera: sin cuentas, el formulario de ingreso
+    rechaza a cualquiera, y eso se lee como «las credenciales no funcionan».
+    """
+    from django.contrib.auth.views import LoginView
+
+    from .selectors import cuentas_de_persona
+
+    if _es_portable_local(request) and not cuentas_de_persona().exists():
+        return redirect("primera_cuenta")
+    return LoginView.as_view()(request, *args, **kwargs)

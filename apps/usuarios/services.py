@@ -444,3 +444,51 @@ def clave_cambiada(usuario):
         usuario.debe_cambiar_clave = False
         usuario.save(update_fields=["debe_cambiar_clave"])
     return usuario
+
+
+def crear_primera_cuenta(*, cedula: str, nombres: str, apellidos: str, clave: str):
+    """
+    La primera cuenta de una portable, creada desde el navegador.
+
+    Antes solo se podía con `python portable/crear_cuenta.py` en una consola.
+    En un Windows sin Python instalado eso significa abrir una consola, ir a la
+    carpeta y escribir la ruta del Python que viaja dentro: justo lo que una
+    portable promete que no hace falta.
+
+    Nace con Administración General —si no, nadie podría dar de alta al resto—
+    y con la clave que su dueño escribe, no una temporal: aquí no hay nadie
+    más que la haya visto.
+
+    Solo funciona mientras NO hay ninguna cuenta de persona. Se vuelve a
+    comprobar dentro de la transacción: dos pestañas abiertas a la vez no
+    pueden crear dos administraciones.
+    """
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    from apps.academico.validators import normalizar_cedula, validar_cedula_ecuatoriana
+
+    from .models import Rol, Usuario
+    from .selectors import cuentas_de_persona
+
+    cedula = normalizar_cedula(cedula)
+    nombres, apellidos = (nombres or "").strip(), (apellidos or "").strip()
+    if not validar_cedula_ecuatoriana(cedula or ""):
+        raise ValidationError("Esa cédula no es válida (no pasa el dígito verificador).")
+    if not nombres or not apellidos:
+        raise ValidationError("Hacen falta los nombres y los apellidos.")
+    validate_password(clave, user=Usuario(username=cedula, first_name=nombres, last_name=apellidos))
+
+    with transaction.atomic():
+        if cuentas_de_persona().select_for_update().exists():
+            raise ValidationError("Este SIBU ya tiene cuentas: ingrese con la suya.")
+        return Usuario.objects.create_superuser(
+            username=cedula,
+            password=clave,
+            email="",
+            first_name=nombres,
+            last_name=apellidos,
+            cedula=cedula,
+            rol_principal=Rol.ADMIN_GENERAL,
+        )

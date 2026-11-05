@@ -1,0 +1,105 @@
+# Construye la carpeta portable de Windows EN un Windows, la PRUEBA y la
+# empaqueta. El resultado es un zip que se descomprime y se usa: Python y todas
+# las dependencias van dentro, no hay que instalar nada.
+#
+# Antes `preparar_windows.ps1` nunca se había ejecutado en un Windows —el
+# desarrollo corre en Linux—. Aquí se ejecuta en cada cambio, y la carpeta que
+# produce se arranca de verdad: se espera al servidor, se crea la primera
+# cuenta por la pantalla del navegador y se hace una copia de seguridad.
+name: Portable Windows
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # solo para adjuntar el zip a una versión (tags v*)
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Armar la carpeta con el script que usaría una persona
+        run: powershell -ExecutionPolicy Bypass -File portable\preparar_windows.ps1
+
+      - name: No queda ninguna clave dentro
+        run: |
+          if (Test-Path datos) { throw "datos\ quedó en la carpeta: todas las copias compartirían la clave" }
+
+      - name: Arrancar la portable y crear la primera cuenta como lo haría alguien
+        run: |
+          $env:PYTHONUTF8 = "1"
+          $p = Start-Process -FilePath "python\python.exe" `
+                 -ArgumentList "portable\arrancar.py","--puerto","8765","--sin-navegador" `
+                 -RedirectStandardOutput arranque.log -RedirectStandardError arranque.err `
+                 -PassThru -NoNewWindow
+          $base = "http://127.0.0.1:8765"
+          $listo = $false
+          for ($i = 0; $i -lt 120; $i++) {
+            Start-Sleep -Seconds 2
+            try { Invoke-WebRequest "$base/cuentas/login/" -UseBasicParsing -MaximumRedirection 0 -ErrorAction Stop | Out-Null; $listo = $true; break }
+            catch { if ($_.Exception.Response) { $listo = $true; break } }
+          }
+          Get-Content arranque.log; Get-Content arranque.err
+          if (-not $listo) { throw "SIBU no respondió en 4 minutos" }
+
+          # Sin cuentas, el ingreso tiene que llevar a crear la primera.
+          $r = Invoke-WebRequest "$base/cuentas/login/" -UseBasicParsing -SessionVariable s
+          if ($r.Content -notmatch "Bienvenido a SIBU") { throw "El ingreso no llevó a crear la primera cuenta" }
+          $token = [regex]::Match($r.Content, 'name="csrfmiddlewaretoken" value="([^"]+)"').Groups[1].Value
+          $datos = @{ csrfmiddlewaretoken = $token; cedula = "1100000007"; nombres = "Prueba";
+                      apellidos = "Windows"; clave = "Clave-Windows-2026!"; clave2 = "Clave-Windows-2026!" }
+          $r = Invoke-WebRequest "$base/cuentas/primera/" -Method Post -Body $datos -WebSession $s `
+                 -UseBasicParsing -Headers @{ Referer = "$base/cuentas/primera/" }
+          if ($r.Content -notmatch "Hola") { throw "Tras crear la cuenta no se entró al sistema" }
+          if ($r.Content -notmatch "Perfiles") { throw "La primera cuenta no es de Administración General" }
+
+          # Una pantalla con estáticos servidos por WhiteNoise.
+          $css = Invoke-WebRequest "$base/static/css/sibu.css" -UseBasicParsing -ErrorAction SilentlyContinue
+          if (-not $css -or $css.StatusCode -ne 200) {
+            $html = (Invoke-WebRequest "$base/" -UseBasicParsing -WebSession $s).Content
+            $hoja = [regex]::Match($html, 'href="(/static/css/sibu[^"]*\.css)"').Groups[1].Value
+            $css = Invoke-WebRequest "$base$hoja" -UseBasicParsing
+            if ($css.StatusCode -ne 200) { throw "Los estáticos no se sirven" }
+          }
+
+          Stop-Process -Id $p.Id -Force
+          Write-Host "SIBU arrancó en Windows y la primera cuenta se creó por la pantalla." -ForegroundColor Green
+
+      - name: Copia de seguridad en Windows
+        run: |
+          $env:PYTHONUTF8 = "1"
+          python\python.exe manage.py respaldar --settings=config.settings.portable
+          if ($LASTEXITCODE -ne 0) { throw "La copia de seguridad falló" }
+
+      - name: Empaquetar sin datos de prueba
+        run: |
+          # Lo que se creó en la prueba (base, clave, copias) no viaja.
+          Remove-Item -Recurse -Force datos -ErrorAction SilentlyContinue
+          Remove-Item -Force arranque.log, arranque.err -ErrorAction SilentlyContinue
+          $fuera = @(".git", ".github", ".devcontainer", "docker", "docker-compose.prod.yml", "Makefile")
+          New-Item -ItemType Directory -Force SIBU | Out-Null
+          Get-ChildItem -Force | Where-Object { $_.Name -ne "SIBU" -and $fuera -notcontains $_.Name } |
+            Move-Item -Destination SIBU
+          Compress-Archive -Path SIBU -DestinationPath SIBU-portable-windows.zip -CompressionLevel Optimal
+          "{0:N1} MB" -f ((Get-Item SIBU-portable-windows.zip).Length / 1MB)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SIBU-portable-windows
+          path: SIBU-portable-windows.zip
+          retention-days: 90
+
+      - name: Adjuntar a la versión
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SIBU-portable-windows.zip

@@ -94,7 +94,7 @@ class Command(BaseCommand):
                     "\nBase preparada. Los datos de demostración se omiten con DEBUG=False."
                 )
             )
-        self.stdout.write(f"Cree una cuenta con: {self._como_crear_cuenta()}")
+        self.stdout.write(self._como_crear_cuenta())
 
     @staticmethod
     def _como_crear_cuenta() -> str:
@@ -109,8 +109,9 @@ class Command(BaseCommand):
         from django.conf import settings
 
         if getattr(settings, "SIBU_PORTABLE", False):
-            return "python portable/crear_cuenta.py"
-        return "python manage.py createsuperuser"
+            # En la portable, el navegador se abre solo en «primera cuenta».
+            return "Al abrir SIBU, el navegador le pedirá crear la primera cuenta."
+        return "Cree una cuenta con: python manage.py createsuperuser"
 
     # ------------------------------------------------------------------
     # Detección de cambios en la siembra

@@ -25,6 +25,11 @@ urlpatterns = [
     # otra tipografía y un enlace a «Administración del sitio»—, y no estaba
     # enlazado desde ningún sitio, así que nadie podía cambiar su contraseña.
     # Declarado aquí primero, `password_change` resuelve a la pantalla de SIBU.
+    # El ingreso lleva a crear la primera cuenta en una portable que aún no
+    # tiene ninguna; y esa pantalla, que solo existe en la portable y desde el
+    # propio computador. Antes del include de `auth` para que resuelvan aquí.
+    path("cuentas/login/", usuarios_views.ingresar, name="login"),
+    path("cuentas/primera/", usuarios_views.primera_cuenta, name="primera_cuenta"),
     path(
         "cuentas/password_change/",
         usuarios_views.cambiar_clave,

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Primera cuenta — SIBU{% endblock %}
+{% block content %}
+{% comment %}
+Antes la primera cuenta solo se creaba con `python portable/crear_cuenta.py`
+en una consola. En un Windows sin Python instalado eso es justo lo que una
+portable promete que no hace falta.
+{% endcomment %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+    <div class="text-center mb-4">
+      <img src="{% static 'img/unl-horizontal.png' %}" alt="Universidad Nacional de Loja"
+           style="max-width:290px;width:100%;height:auto">
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h4 sibu-titulo mb-3">Bienvenido a SIBU</h1>
+        <p>
+          Este SIBU todavía no tiene ninguna cuenta. La que cree ahora será la de
+          <strong>Administración General</strong>: desde ella dará de alta al
+          resto del equipo y les asignará sus servicios.
+        </p>
+        <form method="post" autocomplete="off">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" for="cedula">Cédula</label>
+              <input id="cedula" name="cedula" class="form-control" required maxlength="13"
+                     inputmode="numeric" value="{{ datos.cedula|default:'' }}">
+              <div class="form-text">Con ella ingresará.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="nombres">Nombres</label>
+              <input id="nombres" name="nombres" class="form-control" required
+                     value="{{ datos.nombres|default:'' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="apellidos">Apellidos</label>
+              <input id="apellidos" name="apellidos" class="form-control" required
+                     value="{{ datos.apellidos|default:'' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="clave">Contraseña</label>
+              <input id="clave" name="clave" type="password" class="form-control" required
+                     autocomplete="new-password">
+              <div class="form-text">Al menos 8 caracteres, que no sea su cédula.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="clave2">Repita la contraseña</label>
+              <input id="clave2" name="clave2" type="password" class="form-control" required
+                     autocomplete="new-password">
+            </div>
+          </div>
+          <button class="btn btn-primary mt-3">Crear la cuenta y entrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

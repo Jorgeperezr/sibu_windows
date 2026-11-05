@@ -1,0 +1,6 @@
+# Los lanzadores de Windows necesitan CRLF: con LF, cmd.exe puede saltarse
+# etiquetas o partir líneas al leer un .bat. Git los guarda normalizados y los
+# entrega con CRLF al sacarlos, en cualquier sistema.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf

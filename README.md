@@ -15,61 +15,56 @@ estudiante y tablero de gestión.
 > despliegue de servidor (Oracle Cloud, PostgreSQL, nginx). Aquí continúa el
 > desarrollo de la versión portable.
 
-## Arrancar
+## Arrancar en Windows, sin instalar nada
 
-**Windows** — una sola vez, desde PowerShell en la carpeta del proyecto:
+1. Descargue **`SIBU-portable-windows.zip`**: en GitHub, pestaña *Actions* →
+   *Portable Windows* → la última ejecución en verde → *Artifacts* (o, si hay
+   versiones publicadas, desde *Releases*). Trae Python y todas las
+   dependencias dentro.
+2. Antes de descomprimir: clic derecho en el zip → *Propiedades* → marque
+   **Desbloquear** → *Aceptar*. Si no, Windows marca cada archivo como
+   descargado de internet y pide confirmación al abrirlos.
+3. Descomprímalo donde quiera: el escritorio, *Documentos* o una memoria.
+4. Doble clic en **`Abrir SIBU`**. La primera vez tarda un minuto: prepara la
+   base. Se abre el navegador.
+5. La primera vez, el navegador pide crear la cuenta de **Administración
+   General**. Desde ella se da de alta al resto en *Perfiles → Nueva cuenta*.
 
-```powershell
-portable\preparar_windows.ps1
-```
+Desde el primer arranque aparece en la carpeta un acceso directo **`SIBU`**
+con el escudo de la UNL; se puede llevar al escritorio (clic derecho →
+*Enviar a* → *Escritorio*). Cerrar la ventana negra cierra SIBU.
 
-Eso arma la carpeta completa, con su propio Python dentro. Después basta un
-acceso directo a `portable\SIBU.bat` al que se le pone el icono
-`portable\sibu.ico`: ese es el icono del que habla todo esto.
+Esa carpeta la construye y la **prueba en un Windows real** GitHub Actions en
+cada cambio (`.github/workflows/portable-windows.yml`): arma la carpeta, la
+arranca, crea la primera cuenta por la pantalla y hace una copia de
+seguridad. Si eso falla, no se publica el zip.
 
-**Linux o macOS:**
-
-```bash
-portable/sibu.sh
-```
-
-**Con Python ya instalado**, en cualquier sistema:
-
-```bash
-python portable/crear_cuenta.py   # solo la primera vez
-python portable/arrancar.py       # y ya
-```
+**En Linux o macOS**, con Python instalado: `portable/sibu.sh`, o
+`python portable/arrancar.py`.
 
 `arrancar.py` busca un puerto libre, aplica las migraciones que falten,
-levanta el servidor y abre el navegador **cuando el servidor ya responde** —no
-antes, que es lo que producía la primera pantalla en blanco—.
+levanta el servidor, hace la copia de seguridad del día y abre el navegador
+**cuando el servidor ya responde**.
 
 ### La primera cuenta, y las demás
 
-`portable/crear_cuenta.py` pregunta cédula, nombres y contraseña. **La primera
-cuenta de una portable nace con Administración General**, porque si no, nadie
-podría conceder servicios a nadie: no hay otro administrador al que llamar.
+La primera vez el navegador se abre en *Bienvenido a SIBU*. **La primera
+cuenta nace con Administración General**, porque si no, nadie podría conceder
+servicios a nadie. Esa pantalla solo existe en la portable, solo desde el
+propio computador y solo mientras no hay ninguna cuenta.
 
-A partir de ahí **no hace falta volver a la terminal**: esa cuenta da de alta
-al resto desde *Perfiles → Nueva cuenta*. Cada alta son tres pasos y termina
-con la persona atendiendo:
+Desde ahí se da de alta al resto en *Perfiles → Nueva cuenta*:
 
 1. Administración General crea la cuenta con la cédula y una **clave
-   temporal**, que teclea y le dice a su dueño.
-2. La misma pantalla lleva a asignar sección y servicios. Sin servicios, la
-   persona entra y no puede hacer nada.
-3. Su dueño entra con la cédula y la clave temporal, y **el sistema le obliga
-   a cambiarla antes de dejarle ver nada**: mientras la clave la sepan dos
-   personas, nadie puede responder de lo que se haga con esa cuenta —y si la
-   cuenta es de Psicología, sería una puerta al contenido sellado—.
+   temporal**, que le dice a su dueño.
+2. La misma pantalla lleva a asignar sección y servicios.
+3. Su dueño entra y **el sistema le obliga a cambiar la clave** antes de ver
+   nada: si la cuenta es de Psicología, una clave que conocen dos personas
+   sería una puerta al contenido sellado.
 
-Luego cada profesional declara su horario en *Mi horario*, y de esas franjas
-salen los turnos que puede reservar ventanilla.
-
-No se puede detectar «¿hay cuentas?» con `Usuario.objects.exists()`: siempre
-responde que sí. django-guardian crea por migración la fila `AnonymousUser`
-para colgar ahí los permisos por objeto del usuario anónimo. Se usa
-`cuentas_de_persona()`.
+Luego cada profesional declara su horario en *Mi horario*; Farmacia da de alta
+sus medicamentos en *Inventario* y Laboratorio sus exámenes en *Catálogo de
+exámenes*.
 
 ## La carpeta de datos
 

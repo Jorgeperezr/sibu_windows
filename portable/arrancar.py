@@ -253,19 +253,23 @@ def main() -> int:
     preparar_carpeta(opciones.detallado)
 
     url = f"http://{ANFITRION}:{puerto}/"
+    destino = url
     if not hay_cuentas():
         # Sin ninguna cuenta, el sistema levanta y luego rechaza a cualquiera
-        # que se escriba. Decirlo aquí evita el «las credenciales no funcionan».
+        # que se escriba. El navegador se abre directamente donde se crea la
+        # primera: antes había que escribir un comando de Python en una consola,
+        # que en un Windows sin Python es justo lo que no se puede pedir.
+        destino = f"{url}cuentas/primera/"
         print()
-        print("  No hay ninguna cuenta todavía. Cree la primera con:")
-        print("      python portable/crear_cuenta.py")
+        print("  Todavía no hay ninguna cuenta: el navegador se abrirá para crear")
+        print("  la primera, que será la de Administración General.")
         print()
 
     print(f"SIBU está en {url}")
     print("Para cerrarlo, cierre esta ventana o pulse Ctrl+C.")
 
     if not opciones.sin_navegador:
-        abrir_navegador(url)
+        abrir_navegador(destino)
 
     from waitress import serve
 
