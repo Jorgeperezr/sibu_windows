@@ -17,7 +17,7 @@ from apps.core.models import Servicio
 from apps.usuarios.decorators import verificar_es_del_servicio
 
 from . import services
-from .models import OrdenExamen, OrdenLaboratorio, ParametroExamen
+from .models import Examen, OrdenExamen, OrdenLaboratorio, ParametroExamen
 
 
 def _servicio():
@@ -122,5 +122,59 @@ def detalle_orden(request, pk):
             "persona": orden.atencion.expediente.persona,
             "examenes": examenes,
             "Estado": OrdenLaboratorio.Estado,
+        },
+    )
+
+
+# Filas de parámetros que ofrece el formulario de alta. Las que se dejan sin
+# nombre se ignoran. Ocho cubren una biometría o un perfil lipídico.
+FILAS_DE_PARAMETROS = 8
+
+
+@login_required
+def catalogo(request):
+    """
+    El catálogo de exámenes que este laboratorio realiza.
+
+    No existía: los exámenes solo los creaban los datos de demostración, así
+    que en un despliegue real Medicina no podía pedir ninguno. Lo mantiene
+    Laboratorio, que es quien sabe qué hace y con qué rangos.
+    """
+    verificar_es_del_servicio(request.user, _servicio())
+
+    if request.method == "POST":
+        parametros = [
+            {
+                "nombre": request.POST.get(f"param-{i}-nombre", ""),
+                "unidad": request.POST.get(f"param-{i}-unidad", ""),
+                "ref_min": request.POST.get(f"param-{i}-ref_min", ""),
+                "ref_max": request.POST.get(f"param-{i}-ref_max", ""),
+            }
+            for i in range(FILAS_DE_PARAMETROS)
+        ]
+        try:
+            examen = services.registrar_examen(
+                codigo=request.POST.get("codigo", ""),
+                nombre=request.POST.get("nombre", ""),
+                perfil=request.POST.get("perfil", ""),
+                indicaciones_preparacion=request.POST.get("indicaciones_preparacion", ""),
+                parametros=parametros,
+                usuario=request.user,
+            )
+        except ValidationError as exc:
+            messages.error(request, detalle_de_error(exc, "Revise el examen."))
+        else:
+            messages.success(
+                request, f"{examen.nombre} ya está en el catálogo: Medicina puede pedirlo."
+            )
+            return redirect("laboratorio:catalogo")
+
+    return render(
+        request,
+        "laboratorio/catalogo.html",
+        {
+            "examenes": Examen.objects.prefetch_related("parametros").order_by("perfil", "nombre"),
+            "filas": range(FILAS_DE_PARAMETROS),
+            "datos": request.POST if request.method == "POST" else {},
         },
     )

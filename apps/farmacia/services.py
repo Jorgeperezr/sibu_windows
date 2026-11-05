@@ -568,3 +568,69 @@ def anular_receta(receta: Receta, motivo: str) -> Receta:
     receta.estado = Receta.Estado.ANULADA
     receta.save(update_fields=["estado", "actualizado_en"])
     return receta
+
+
+@transaction.atomic
+def registrar_medicamento(
+    *,
+    codigo: str,
+    dci: str,
+    concentracion: str = "",
+    forma_farmaceutica: str = "",
+    unidad_medida: str = "",
+    nombre_comercial: str = "",
+    stock_minimo: int = 0,
+    requiere_receta: bool = True,
+    usuario=None,
+) -> Medicamento:
+    """
+    Da de alta un medicamento en el catálogo de la farmacia.
+
+    Hasta ahora no había forma de hacerlo desde el sistema: el inventario
+    ingresaba lotes de un medicamento que YA existiera, y el catálogo solo lo
+    llenaban los datos de demostración. En un despliegue real —una portable,
+    o un servidor preparado con `--sin-demo`— el catálogo nacía vacío:
+    Medicina no podía recetar nada y Farmacia no tenía qué ingresar. Lo único
+    que quedaba era el panel de administración de Django, al que el personal
+    de Farmacia no tiene acceso.
+
+    El código es la clave del catálogo: se compara sin distinguir mayúsculas,
+    porque «PCT500» y «pct500» son el mismo medicamento escrito dos veces.
+    """
+    from apps.auditoria.models import LogAuditoria
+
+    codigo = (codigo or "").strip().upper()
+    dci = (dci or "").strip()
+    if not codigo:
+        raise ValidationError("El código es obligatorio: es como se identifica en el catálogo.")
+    if not dci:
+        raise ValidationError(
+            "La denominación común internacional (DCI) es obligatoria: es el principio activo."
+        )
+    if Medicamento.objects.filter(codigo__iexact=codigo).exists():
+        raise ValidationError(f"Ya hay un medicamento con el código {codigo}.")
+    if stock_minimo is not None and stock_minimo < 0:
+        raise ValidationError("El stock mínimo no puede ser negativo.")
+
+    medicamento = Medicamento.objects.create(
+        codigo=codigo,
+        dci=dci,
+        concentracion=(concentracion or "").strip(),
+        forma_farmaceutica=(forma_farmaceutica or "").strip(),
+        unidad_medida=(unidad_medida or forma_farmaceutica or "").strip(),
+        nombre_comercial=(nombre_comercial or "").strip(),
+        stock_minimo=stock_minimo or 0,
+        requiere_receta=requiere_receta,
+        creado_por=getattr(usuario, "usuario", usuario),
+    )
+    cuenta = getattr(usuario, "usuario", usuario)
+    LogAuditoria.objects.create(
+        usuario=cuenta,
+        rol_activo=getattr(cuenta, "rol_principal", ""),
+        accion=LogAuditoria.Accion.CREATE,
+        modulo="farmacia",
+        entidad="Medicamento",
+        entidad_id=str(medicamento.pk),
+        detalle={"codigo": medicamento.codigo, "dci": medicamento.dci},
+    )
+    return medicamento

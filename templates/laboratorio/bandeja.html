@@ -2,7 +2,10 @@
 {% block title %}Laboratorio · SIBU{% endblock %}
 {% block content %}
 <div class="sibu-cabecera"><h1 class="h4 sibu-titulo mb-0">Bandeja de laboratorio</h1>
-  {% include "_exportar_servicio.html" with codigo="laboratorio-clinico" %}
+  <div class="d-flex gap-2">
+    <a href="{% url 'laboratorio:catalogo' %}" class="btn btn-sm btn-outline-primary">Catálogo de exámenes</a>
+    {% include "_exportar_servicio.html" with codigo="laboratorio-clinico" %}
+  </div>
 </div>
 
 <div class="card">

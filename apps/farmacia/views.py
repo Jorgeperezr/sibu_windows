@@ -143,7 +143,24 @@ def inventario(request):
             return redirect("farmacia:inventario")
         try:
             accion = request.POST.get("accion")
-            if accion == "ingresar":
+            if accion == "nuevo_medicamento":
+                medicamento = services.registrar_medicamento(
+                    codigo=request.POST.get("codigo", ""),
+                    dci=request.POST.get("dci", ""),
+                    concentracion=request.POST.get("concentracion", ""),
+                    forma_farmaceutica=request.POST.get("forma_farmaceutica", ""),
+                    nombre_comercial=request.POST.get("nombre_comercial", ""),
+                    stock_minimo=_entero((request.POST.get("stock_minimo") or "").strip() or "0"),
+                    requiere_receta=request.POST.get("requiere_receta") == "1",
+                    usuario=perfil,
+                )
+                messages.success(
+                    request,
+                    f"{medicamento.dci} {medicamento.concentracion} ya está en el catálogo. "
+                    "Ingrese su primer lote para que se pueda despachar.",
+                )
+
+            elif accion == "ingresar":
                 lote = services.ingresar_lote(
                     get_object_or_404(Medicamento, pk=request.POST["medicamento"]),
                     request.POST.get("numero_lote", "").strip(),

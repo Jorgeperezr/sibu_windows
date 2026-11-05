@@ -264,3 +264,82 @@ def ordenes_pendientes():
         .annotate(_prioridad_orden=orden_prioridad)
         .order_by("_prioridad_orden", "creado_en")
     )
+
+
+@transaction.atomic
+def registrar_examen(
+    *,
+    codigo: str,
+    nombre: str,
+    perfil: str = "",
+    indicaciones_preparacion: str = "",
+    parametros: list[dict] | None = None,
+    usuario=None,
+) -> Examen:
+    """
+    Da de alta un examen en el catálogo, con sus parámetros y rangos.
+
+    El catálogo solo lo llenaban los datos de demostración: en un despliegue
+    real nacía vacío, Medicina no podía pedir ningún examen y Laboratorio no
+    tenía qué informar. Lo único que quedaba era el panel de administración de
+    Django, al que el personal de Laboratorio no tiene acceso.
+
+    Los rangos se leen con `core.numeros`: «13,5» es como se escribe aquí.
+    Un parámetro sin nombre se ignora —es una fila del formulario que se dejó
+    en blanco—, pero un examen sin ningún parámetro no se crea: no habría
+    nada que informar.
+    """
+    from apps.auditoria.models import LogAuditoria
+
+    codigo = (codigo or "").strip().upper()
+    nombre = (nombre or "").strip()
+    if not codigo or not nombre:
+        raise ValidationError("El código y el nombre del examen son obligatorios.")
+    if Examen.objects.filter(codigo__iexact=codigo).exists():
+        raise ValidationError(f"Ya hay un examen con el código {codigo}.")
+
+    filas = [p for p in (parametros or []) if (p.get("nombre") or "").strip()]
+    if not filas:
+        raise ValidationError(
+            "Añada al menos un parámetro: es lo que Laboratorio informa de este examen."
+        )
+
+    leidos = []
+    for orden, fila in enumerate(filas, start=1):
+        etiqueta = fila["nombre"].strip()
+        ref_min = numeros.a_decimal(fila.get("ref_min"), campo=f"mínimo de {etiqueta}")
+        ref_max = numeros.a_decimal(fila.get("ref_max"), campo=f"máximo de {etiqueta}")
+        if ref_min is not None and ref_max is not None and ref_min > ref_max:
+            raise ValidationError(
+                f"En {etiqueta}, el mínimo ({ref_min}) es mayor que el máximo ({ref_max})."
+            )
+        leidos.append(
+            {
+                "nombre": etiqueta,
+                "unidad": (fila.get("unidad") or "").strip(),
+                "ref_min": ref_min,
+                "ref_max": ref_max,
+                "orden": orden,
+            }
+        )
+
+    examen = Examen.objects.create(
+        codigo=codigo,
+        nombre=nombre,
+        perfil=(perfil or "").strip(),
+        indicaciones_preparacion=(indicaciones_preparacion or "").strip(),
+    )
+    for datos in leidos:
+        ParametroExamen.objects.create(examen=examen, **datos)
+
+    cuenta = getattr(usuario, "usuario", usuario)
+    LogAuditoria.objects.create(
+        usuario=cuenta,
+        rol_activo=getattr(cuenta, "rol_principal", ""),
+        accion=LogAuditoria.Accion.CREATE,
+        modulo="laboratorio",
+        entidad="Examen",
+        entidad_id=str(examen.pk),
+        detalle={"codigo": examen.codigo, "parametros": [d["nombre"] for d in leidos]},
+    )
+    return examen
