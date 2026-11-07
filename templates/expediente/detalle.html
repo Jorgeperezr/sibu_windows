@@ -12,6 +12,9 @@
     <a href="{% url 'expediente:datos' expediente.pk %}" class="btn btn-sm btn-outline-primary">
       <i class="bi bi-sliders"></i> Datos y ajustes
     </a>
+    <a href="{% url 'documentos:lista' expediente.pk %}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-folder2-open"></i> Documentos
+    </a>
     <a href="{% url 'expediente:buscar' %}" class="btn btn-sm btn-outline-secondary">Nueva búsqueda</a>
   </div>
 </div>

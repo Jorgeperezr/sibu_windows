@@ -17,8 +17,10 @@ Se guardan las últimas `--conservar` (14 por omisión) en `datos/respaldos/`.
     python manage.py respaldar --si-no-hay-de-hoy     # lo que hace el arranque
     python manage.py respaldar --destino E:/respaldos-sibu
 
-IMPORTANTE: la copia contiene la base ENTERA, contenido de Psicología
-incluido. Va a donde vaya la carpeta, y debe ir solo a un disco cifrado bajo
+Los documentos del expediente van en un zip al lado, con la misma fecha.
+
+IMPORTANTE: la copia contiene la base ENTERA y todos los documentos,
+contenido de Psicología incluido. Va a donde vaya la carpeta, y debe ir solo a un disco cifrado bajo
 control de la Unidad. En un servidor con PostgreSQL esto no aplica: ahí se usa
 `pg_dump` (docs/ORACLE_CLOUD.md).
 """
@@ -81,9 +83,37 @@ def respaldar(destino: Path, conservar: int = 14, ahora=None, conexion=None) -> 
         archivo.unlink(missing_ok=True)
         raise CommandError(f"La copia salió dañada ({estado}) y se descartó.")
 
+    respaldar_documentos(archivo)
+
     for viejo in respaldos_en(destino)[:-conservar] if conservar > 0 else []:
         viejo.unlink(missing_ok=True)
+        Path(str(viejo)[: -len(SUFIJO)] + "-documentos.zip").unlink(missing_ok=True)
     return archivo
+
+
+def respaldar_documentos(copia_base: Path) -> Path | None:
+    """
+    Los documentos del expediente, junto a la copia de la base.
+
+    Viven en disco, no en la base: sin esto, una copia restaurada traía la
+    lista de documentos y ninguno de los archivos. Van en un zip con el mismo
+    sello de fecha, y se comprueba antes de darlo por bueno.
+    """
+    import zipfile
+
+    origen = Path(getattr(settings, "SIBU_DOCUMENTOS_ROOT", ""))
+    if not origen.is_dir() or not any(origen.rglob("*")):
+        return None
+    zip_destino = Path(str(copia_base)[: -len(SUFIJO)] + "-documentos.zip")
+    with zipfile.ZipFile(zip_destino, "w", zipfile.ZIP_DEFLATED) as zf:
+        for archivo in sorted(origen.rglob("*")):
+            if archivo.is_file():
+                zf.write(archivo, archivo.relative_to(origen))
+    with zipfile.ZipFile(zip_destino) as zf:
+        if zf.testzip() is not None:
+            zip_destino.unlink(missing_ok=True)
+            raise CommandError("La copia de los documentos salió dañada y se descartó.")
+    return zip_destino
 
 
 class Command(BaseCommand):

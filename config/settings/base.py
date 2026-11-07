@@ -177,6 +177,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "media/"
 MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
+# Los documentos del expediente, FUERA de MEDIA_ROOT: `/media/` se sirve sin
+# comprobar quién pide, y un informe de Psicología no puede estar a una URL de
+# distancia. Salen solo por `documentos:archivo`, que mira el acceso.
+SIBU_DOCUMENTOS_ROOT = env("SIBU_DOCUMENTOS_ROOT", default=str(BASE_DIR / "privado"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

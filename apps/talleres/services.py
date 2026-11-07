@@ -192,7 +192,7 @@ def adjuntar_evidencia(taller: Taller, *, nombre: str, contenido: bytes, mime: s
             if almacen.codigo == "gdrive"
             else DocumentoAnexo.Almacenamiento.LOCAL
         ),
-        ruta_cifrada=subida.ruta,
+        ruta=subida.ruta,
         gdrive_file_id=subida.file_id,
         gdrive_url=subida.url,
         mime=mime,

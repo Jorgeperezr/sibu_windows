@@ -54,6 +54,7 @@ urlpatterns = [
     path("trabajo-social/", include("apps.trabajo_social.urls")),
     path("derivaciones/", include("apps.derivaciones.urls")),
     path("firma/", include("apps.firma.urls")),
+    path("documentos/", include("apps.documentos.urls")),
     path("becas/", include("apps.becas.urls")),
     path("talleres/", include("apps.talleres.urls")),
     path("portal/", include("apps.portal.urls")),

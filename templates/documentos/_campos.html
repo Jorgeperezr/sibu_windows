@@ -1,0 +1,18 @@
+<div class="row g-2 mb-2">
+  <div class="col-sm-6">
+    <label class="form-label">Servicio</label>
+    <select name="servicio" class="form-select" required>
+      {% for s in servicios %}<option value="{{ s.pk }}">{{ s.nombre }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-sm-6">
+    <label class="form-label">Tipo</label>
+    <select name="tipo_documento" class="form-select">
+      {% for valor, etiqueta in tipos %}<option value="{{ valor }}">{{ etiqueta }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-12">
+    <label class="form-label">Descripción</label>
+    <input name="descripcion" class="form-control" maxlength="255" placeholder="Opcional">
+  </div>
+</div>

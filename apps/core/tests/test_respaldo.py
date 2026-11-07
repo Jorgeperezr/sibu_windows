@@ -129,3 +129,38 @@ def test_en_postgresql_se_niega_y_dice_que_usar(db):
     """En el servidor el respaldo es `pg_dump`; este comando no finge hacerlo."""
     with pytest.raises(CommandError, match="pg_dump"):
         modulo.respaldar(Path("/tmp/no-se-usa"))
+
+
+def test_los_documentos_van_con_la_copia(base_wal, tmp_path, settings):
+    """
+    Viven en disco, no en la base: una copia sin ellos se restauraba con la
+    lista de documentos y ninguno de los archivos.
+    """
+    import zipfile
+
+    conexion, _ruta = base_wal
+    docs = tmp_path / "documentos" / "7"
+    docs.mkdir(parents=True)
+    (docs / "abc.pdf").write_bytes(b"%PDF-1.4 informe")
+    settings.SIBU_DOCUMENTOS_ROOT = str(tmp_path / "documentos")
+
+    archivo = modulo.respaldar(tmp_path / "respaldos", conexion=conexion)
+
+    zip_docs = Path(str(archivo).replace(".sqlite3", "-documentos.zip"))
+    with zipfile.ZipFile(zip_docs) as zf:
+        assert zf.read("7/abc.pdf") == b"%PDF-1.4 informe"
+
+
+def test_al_rotar_se_va_tambien_su_zip(base_wal, tmp_path, settings):
+    conexion, _ruta = base_wal
+    (tmp_path / "documentos").mkdir()
+    (tmp_path / "documentos" / "a.pdf").write_bytes(b"%PDF-1.4")
+    settings.SIBU_DOCUMENTOS_ROOT = str(tmp_path / "documentos")
+    destino = tmp_path / "respaldos"
+    for dia in range(1, 4):
+        modulo.respaldar(destino, conservar=1, ahora=datetime(2026, 11, dia, 8), conexion=conexion)
+
+    assert sorted(p.name for p in destino.iterdir()) == [
+        "sibu-20261103-080000-documentos.zip",
+        "sibu-20261103-080000.sqlite3",
+    ]

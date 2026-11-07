@@ -134,6 +134,7 @@ DATABASES = {
 }
 
 MEDIA_ROOT = str(CARPETA_DATOS / "media")
+SIBU_DOCUMENTOS_ROOT = str(CARPETA_DATOS / "documentos")
 STATIC_ROOT = str(Path(BASE_DIR) / "staticfiles")
 
 # WhiteNoise sirve los estáticos: no hay nginx en una portable.

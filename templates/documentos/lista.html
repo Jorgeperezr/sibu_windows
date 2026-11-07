@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Documentos · {{ persona.nombre_completo }} · SIBU{% endblock %}
+{% block content %}
+<div class="sibu-cabecera mb-3">
+  <div>
+    <h1 class="h4 sibu-titulo mb-0">Documentos</h1>
+    <small class="text-muted d-block">{{ persona.nombre_completo }} · {{ expediente.numero_expediente }}</small>
+  </div>
+  <a href="{% url 'expediente:detalle' expediente.pk %}" class="btn btn-sm btn-outline-secondary">Expediente</a>
+</div>
+
+{% comment %}
+Solo se listan los documentos que este usuario puede ver: los de un servicio
+sellado no aparecen ni por su nombre fuera de él.
+{% endcomment %}
+<div class="card mb-3">
+  <div class="card-header">En este expediente</div>
+  <ul class="list-group list-group-flush">
+    {% for d in documentos %}
+    <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+      <div class="flex-grow-1">
+        <a href="{% url 'documentos:archivo' d.pk %}" target="_blank" rel="noopener">{{ d.nombre_archivo }}</a>
+        <span class="badge text-bg-light border">{{ d.get_tipo_documento_display }}</span>
+        {% if d.original_id %}<span class="badge text-bg-light border">versión marcada</span>{% endif %}
+        <div class="small text-muted">
+          {{ d.servicio.nombre }} · {{ d.creado_en|date:"d/m/Y H:i" }}{% if d.creado_por %} · {{ d.creado_por.get_full_name|default:d.creado_por.username }}{% endif %}
+          · {{ d.tamano|filesizeformat }}{% if d.descripcion %} · {{ d.descripcion }}{% endif %}
+        </div>
+      </div>
+      <a href="{% url 'documentos:archivo' d.pk %}?descargar=1" class="btn btn-sm btn-outline-secondary">Descargar</a>
+      {% if d.es_imagen %}
+      <a href="{% url 'documentos:marcar' d.pk %}" class="btn btn-sm btn-outline-primary">Marcar</a>
+      {% endif %}
+      {% if d.servicio in servicios %}
+      <form method="post" action="{% url 'documentos:retirar' d.pk %}" class="d-inline"
+            data-confirmar="¿Retirar «{{ d.nombre_archivo }}» de la lista? El archivo no se borra.">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-danger">Retirar</button>
+      </form>
+      {% endif %}
+    </li>
+    {% empty %}
+    <li class="list-group-item text-muted">Todavía no hay documentos que usted pueda ver.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+{% if servicios %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">Subir un archivo</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="subir">
+          {% include "documentos/_campos.html" %}
+          <div class="mb-2">
+            <label class="form-label" for="archivo">PDF o foto</label>
+            <input id="archivo" name="archivo" type="file" class="form-control" required
+                   accept="application/pdf,image/jpeg,image/png,image/webp">
+            <div class="form-text">Hasta {{ maximo_mb }} MB.</div>
+          </div>
+          <button class="btn btn-primary">Subir</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">Escanear con fotos</div>
+      <div class="card-body">
+        {% comment %}
+        Un navegador no habla con un escáner. Se fotografía cada página —en
+        un teléfono, «Elegir fotos» abre la cámara— y el servidor arma un PDF
+        con el papel blanco y la tinta negra.
+        {% endcomment %}
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="escanear">
+          {% include "documentos/_campos.html" %}
+          <div class="mb-2">
+            <label class="form-label" for="fotos">Una foto por página, en orden</label>
+            <input id="fotos" name="fotos" type="file" class="form-control" required multiple
+                   accept="image/*" capture="environment">
+            <div class="form-text">Hasta {{ maximo_paginas }} páginas.</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="modo">Realce</label>
+            <select id="modo" name="modo" class="form-select">
+              {% for clave, texto in modos.items %}<option value="{{ clave }}">{{ texto }}</option>{% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-primary">Armar el PDF</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-secondary">Solo puede adjuntar documentos quien atiende en un servicio.</div>
+{% endif %}
+{% endblock %}

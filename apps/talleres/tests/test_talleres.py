@@ -327,8 +327,8 @@ def test_el_nombre_del_archivo_no_escapa_de_la_carpeta(escenario, settings, tmp_
     doc = services.adjuntar_evidencia(
         t, nombre="../../../etc/passwd", contenido=b"x", mime="text/plain"
     )
-    assert "/etc/passwd" not in doc.ruta_cifrada
-    assert str(tmp_path) in doc.ruta_cifrada
+    assert "/etc/passwd" not in doc.ruta
+    assert str(tmp_path) in doc.ruta
 
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load estaticos %}
+{% block title %}Marcar · {{ documento.nombre_archivo }} · SIBU{% endblock %}
+{% block content %}
+<div class="sibu-cabecera mb-3">
+  <div>
+    <h1 class="h4 sibu-titulo mb-0">Marcar la foto</h1>
+    <small class="text-muted d-block">{{ documento.nombre_archivo }} · se guardará como documento nuevo; esta no se toca</small>
+  </div>
+  <a href="{% url 'documentos:lista' documento.expediente_id %}" class="btn btn-sm btn-outline-secondary">Volver</a>
+</div>
+
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="herramientas">
+  <div class="btn-group" role="group" aria-label="Herramienta">
+    <button type="button" class="btn btn-sm btn-outline-primary active" data-herramienta="lapiz">Lápiz</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-herramienta="flecha">Flecha</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-herramienta="circulo">Círculo</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-herramienta="rectangulo">Rectángulo</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-herramienta="texto">Texto</button>
+  </div>
+  <label class="small">Color <input type="color" id="color" value="#d32f2f"></label>
+  <label class="small">Grosor
+    <select id="grosor" class="form-select form-select-sm d-inline-block w-auto">
+      <option value="0.004">Fino</option><option value="0.008" selected>Medio</option><option value="0.014">Grueso</option>
+    </select>
+  </label>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="deshacer">Deshacer</button>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="limpiar">Quitar todas</button>
+</div>
+
+<div class="border rounded bg-light p-1 mb-3" style="touch-action:none">
+  <canvas id="lienzo" data-imagen="{% url 'documentos:archivo' documento.pk %}"
+          style="max-width:100%;height:auto;display:block;margin:auto;cursor:crosshair"></canvas>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="guardar-marcas">
+  {% csrf_token %}
+  <div class="row g-2 align-items-end">
+    <div class="col-md-8">
+      <label class="form-label" for="descripcion">Descripción de la versión marcada</label>
+      <input id="descripcion" name="descripcion" class="form-control" maxlength="255" value="{{ documento.descripcion }}">
+    </div>
+    <div class="col-md-4">
+      <button class="btn btn-primary w-100" id="boton-guardar">Guardar la versión marcada</button>
+    </div>
+  </div>
+  <p class="form-text">Con ratón, dedo o lápiz de tableta. Para el texto, elija «Texto» y toque donde va.</p>
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% estatico 'js/marcar_foto.js' %}"></script>{% endblock %}
