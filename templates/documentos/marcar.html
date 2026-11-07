@@ -28,9 +28,8 @@
   <button type="button" class="btn btn-sm btn-outline-secondary" id="limpiar">Quitar todas</button>
 </div>
 
-<div class="border rounded bg-light p-1 mb-3" style="touch-action:none">
-  <canvas id="lienzo" data-imagen="{% url 'documentos:archivo' documento.pk %}"
-          style="max-width:100%;height:auto;display:block;margin:auto;cursor:crosshair"></canvas>
+<div class="border rounded bg-light p-1 mb-3 sibu-sin-gestos">
+  <canvas class="sibu-lienzo" id="lienzo" data-imagen="{% url 'documentos:archivo' documento.pk %}"></canvas>
 </div>
 
 <form method="post" enctype="multipart/form-data" id="guardar-marcas">

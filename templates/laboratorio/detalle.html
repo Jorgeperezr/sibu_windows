@@ -99,7 +99,7 @@
               <input type="hidden" name="accion" value="resultado">
               <input type="hidden" name="orden_examen" value="{{ bloque.orden_examen.id }}">
               <input type="hidden" name="parametro" value="{{ p.parametro.id }}">
-              <input name="valor" class="form-control form-control-sm" style="width:100px"
+              <input name="valor" class="form-control form-control-sm sibu-w-100"
                      value="{{ p.resultado.valor|default:'' }}" required>
               <button class="btn btn-sm btn-outline-primary">Guardar</button>
             </form>
@@ -134,7 +134,7 @@
   {% endif %}
 
   {% if orden.estado == Estado.VALIDADO %}
-  <form method="post" onsubmit="return confirm('¿Publicar y enviar al correo del paciente?')">
+  <form method="post" data-confirmar="¿Publicar y enviar al correo del paciente?">
     {% csrf_token %}
     <input type="hidden" name="accion" value="publicar">
     <button class="btn btn-success">Publicar y enviar al paciente</button>

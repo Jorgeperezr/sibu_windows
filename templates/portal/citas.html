@@ -9,7 +9,7 @@
       <div class="card-body">
         <form method="get" class="mb-3">
           <label class="form-label small">Servicio</label>
-          <select name="servicio" class="form-select form-select-sm" onchange="this.form.submit()">
+          <select name="servicio" class="form-select form-select-sm" data-enviar-al-cambiar>
             <option value="">—</option>
             {% for s in servicios %}
             <option value="{{ s.pk }}" {% if servicio_sel and s.pk == servicio_sel.pk %}selected{% endif %}>{{ s.nombre }}</option>
@@ -22,11 +22,11 @@
             {% csrf_token %}
             <input type="hidden" name="servicio" value="{{ servicio_sel.pk }}">
             <label class="form-label small">Turnos disponibles (próximos 14 días)</label>
-            <div class="list-group small mb-2" style="max-height:300px;overflow:auto">
+            <div class="list-group small mb-2 sibu-lista-alta">
               {% for t in turnos %}
               <label class="list-group-item d-flex gap-2">
                 <input type="radio" name="turno" value="{{ t.turno|date:'c' }}" required
-                       onclick="document.getElementById('prof').value='{{ t.profesional.pk }}'">
+                       data-copiar-a="prof" data-copiar-valor="{{ t.profesional.pk }}">
                 {{ t.turno|date:"D d/m H:i" }} · {{ t.profesional.usuario.get_full_name|default:"Profesional" }}
               </label>
               {% endfor %}

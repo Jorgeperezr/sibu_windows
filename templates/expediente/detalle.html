@@ -103,7 +103,7 @@
       <form method="get" class="d-flex align-items-center gap-2 mb-3">
         <label class="form-label small mb-0" for="servicio-de-ajuste">Anotar desde</label>
         <select class="form-select form-select-sm w-auto" id="servicio-de-ajuste"
-                name="servicio" onchange="this.form.submit()">
+                name="servicio" data-enviar-al-cambiar>
           {% for s in servicios_de_ajuste %}
           <option value="{{ s.id }}" {% if s.id == servicio_de_ajuste.id %}selected{% endif %}>
             {{ s.nombre }}
@@ -141,9 +141,9 @@
                   {% csrf_token %}
                   <input type="hidden" name="variable" value="{{ v.variable }}">
                   <input type="hidden" name="servicio" value="{{ servicio_de_ajuste.id }}">
-                  <input name="valor" class="form-control form-control-sm" style="width:110px"
+                  <input name="valor" class="form-control form-control-sm sibu-w-110"
                          value="{{ v.valor }}" aria-label="Valor comprobado para {{ v.etiqueta }}">
-                  <input name="nota" class="form-control form-control-sm" style="width:190px"
+                  <input name="nota" class="form-control form-control-sm sibu-w-190"
                          placeholder="Por qué" maxlength="255" value="{{ v.nota }}">
                   <button class="btn btn-sm btn-outline-primary">Anotar</button>
                   {% if v.ajustado %}

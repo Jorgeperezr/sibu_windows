@@ -4,7 +4,7 @@
 <div class="sibu-cabecera mb-3"><h1 class="h4 sibu-titulo mb-0">Derivaciones — {{ servicio.nombre }}</h1>
   {% if servicios.count > 1 %}
   <form method="get">
-    <select name="servicio" class="form-select form-select-sm" onchange="this.form.submit()">
+    <select name="servicio" class="form-select form-select-sm" data-enviar-al-cambiar>
       {% for s in servicios %}
       <option value="{{ s.pk }}" {% if s.pk == servicio.pk %}selected{% endif %}>{{ s.nombre }}</option>
       {% endfor %}
@@ -36,7 +36,7 @@
           {% if d.estado == "enviada" %}
             <button name="accion" value="aceptar" class="btn btn-sm btn-success">Aceptar</button>
             <button name="accion" value="rechazar" class="btn btn-sm btn-outline-danger"
-                    onclick="this.form.motivo.value=prompt('Motivo del rechazo:')||''">Rechazar</button>
+                    data-pedir="Motivo del rechazo:" data-pedir-campo="motivo">Rechazar</button>
             <input type="hidden" name="motivo">
           {% elif d.estado == "aceptada" %}
             <button name="accion" value="agendar" class="btn btn-sm btn-outline-primary">Agendar</button>

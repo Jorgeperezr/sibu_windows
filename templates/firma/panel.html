@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load estaticos %}
 {% block title %}Firma electrónica — SIBU{% endblock %}
 {% block content %}
 <h1 class="h4 sibu-titulo">Firma electrónica</h1>
@@ -41,7 +42,7 @@
 </div>
 
 {% elif proveedor.codigo == "local" %}
-<div class="card" style="max-width:720px">
+<div class="card sibu-mw-720">
   <div class="card-body">
     <p class="small text-muted">
       Descargue el documento y fírmelo en su computador con su certificado.
@@ -85,7 +86,7 @@
 </a>
 
 {% else %}
-<div class="card" style="max-width:720px">
+<div class="card sibu-mw-720">
   <div class="card-body">
     <p class="small text-muted">
       Firmador: <strong>{{ proveedor.nombre }}</strong>. Al firmar, se abrirá en
@@ -131,26 +132,6 @@
 </p>
 
 {% if inicio %}
-<script>
-// FirmaEC firma fuera del navegador y devuelve el PDF al servidor, no a esta
-// pestaña: no hay evento que escuchar. Se consulta el estado hasta que llegue.
-(function () {
-  var url = "{% url 'firma:estado' solicitud.pk %}";
-  var intentos = 0;
-  var timer = setInterval(function () {
-    intentos++;
-    if (intentos > 60) { clearInterval(timer); return; }   // ~5 min
-    fetch(url, { credentials: "same-origin" })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (d && (d.firmada || d.estado === "fallida")) {
-          clearInterval(timer);
-          window.location.reload();
-        }
-      })
-      .catch(function () { /* reintenta en el siguiente ciclo */ });
-  }, 5000);
-})();
-</script>
+<script src="{% estatico 'js/firma_estado.js' %}" data-url="{% url 'firma:estado' solicitud.pk %}"></script>
 {% endif %}
 {% endblock %}

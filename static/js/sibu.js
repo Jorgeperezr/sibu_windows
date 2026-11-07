@@ -12,8 +12,41 @@ document.addEventListener("submit", function (evento) {
   var texto = (boton && boton.getAttribute("data-confirmar")) || form.getAttribute("data-confirmar");
   if (texto && !window.confirm(texto)) {
     evento.preventDefault();
+    return;
+  }
+  // <button data-pedir="Motivo del rechazo:" data-pedir-campo="motivo">:
+  // pregunta y lo escribe en el campo oculto. Cancelar no envía: antes se
+  // enviaba el rechazo con el motivo vacío.
+  var pregunta = boton && boton.getAttribute("data-pedir");
+  if (pregunta) {
+    var respuesta = window.prompt(pregunta);
+    if (respuesta === null) {
+      evento.preventDefault();
+      return;
+    }
+    var campo = form.elements[boton.getAttribute("data-pedir-campo")];
+    if (campo) campo.value = respuesta;
   }
 }, true);
+
+// <select data-enviar-al-cambiar>: un filtro que se aplica al elegir.
+document.addEventListener("change", function (evento) {
+  var campo = evento.target;
+  if (campo.hasAttribute && campo.hasAttribute("data-enviar-al-cambiar") && campo.form) {
+    if (campo.form.requestSubmit) campo.form.requestSubmit();
+    else campo.form.submit();
+  }
+});
+
+// <input data-copiar-a="prof" data-copiar-valor="7">: al elegirlo, copia su
+// valor a otro campo (el profesional del turno elegido).
+document.addEventListener("change", function (evento) {
+  var campo = evento.target;
+  var destino = campo.getAttribute && campo.getAttribute("data-copiar-a");
+  if (destino && document.getElementById(destino)) {
+    document.getElementById(destino).value = campo.getAttribute("data-copiar-valor");
+  }
+});
 
 document.addEventListener("click", function (evento) {
   var enlace = evento.target.closest("a[data-confirmar]");

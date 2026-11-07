@@ -134,7 +134,7 @@
         <div class="d-flex justify-content-between align-items-start gap-2">
           <span>{{ a.descripcion }}</span>
           <form method="post" class="d-inline"
-                onsubmit="return confirm('¿Eliminar esta actividad{% if a.subactividades.all %} y sus sub-actividades{% endif %}?');">
+                data-confirmar="¿Eliminar esta actividad{% if a.subactividades.all %} y sus sub-actividades{% endif %}?">
             {% csrf_token %}
             <input type="hidden" name="accion" value="eliminar_actividad">
             <input type="hidden" name="actividad" value="{{ a.pk }}">
@@ -150,7 +150,7 @@
             <div class="d-flex justify-content-between align-items-start gap-2">
               <span>{{ sub.descripcion }}</span>
               <form method="post" class="d-inline"
-                    onsubmit="return confirm('¿Eliminar esta sub-actividad?');">
+                    data-confirmar="¿Eliminar esta sub-actividad?">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="eliminar_actividad">
                 <input type="hidden" name="actividad" value="{{ sub.pk }}">

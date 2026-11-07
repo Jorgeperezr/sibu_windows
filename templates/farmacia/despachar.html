@@ -62,8 +62,8 @@
               {% csrf_token %}
               <input type="hidden" name="accion" value="despachar_item">
               <input type="hidden" name="detalle" value="{{ i.detalle.id }}">
-              <input type="number" name="cantidad" class="form-control form-control-sm"
-                     style="width:80px" value="{{ i.pendiente }}" min="1" max="{{ i.pendiente }}">
+              <input type="number" name="cantidad" class="form-control form-control-sm sibu-w-80"
+                     value="{{ i.pendiente }}" min="1" max="{{ i.pendiente }}">
               <button class="btn btn-sm btn-primary">Entregar</button>
             </form>
             {% endif %}

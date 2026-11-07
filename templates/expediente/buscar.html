@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load estaticos %}
 {% block title %}Buscar expediente · SIBU{% endblock %}
 {% block content %}
 <div class="sibu-cabecera mb-3"><h1 class="h4 sibu-titulo mb-0">Buscar expediente</h1>
@@ -128,51 +129,5 @@ sin JavaScript las dos casillas siguen funcionando exactamente igual, porque
 Solo sugiere: no rellena el expediente ni resuelve nada. Quien decide sigue
 siendo el profesional, que pulsa Buscar.
 {% endcomment %}
-<script>
-(function () {
-  const URL_SUGERENCIAS = "{% url 'academico:autocompletar' %}";
-
-  function conectar(idCampo, idLista, formato) {
-    const campo = document.getElementById(idCampo);
-    const lista = document.getElementById(idLista);
-    if (!campo || !lista) return;
-
-    let temporizador = null;
-    campo.addEventListener("input", function () {
-      // Se espera a que deje de teclear: una consulta por pulsación
-      // convertiría el buscador en un martillo contra la base.
-      clearTimeout(temporizador);
-      const texto = campo.value.trim();
-      if (texto.length < 3) { lista.innerHTML = ""; return; }
-      temporizador = setTimeout(function () {
-        fetch(URL_SUGERENCIAS + "?q=" + encodeURIComponent(texto))
-          .then(function (r) { return r.ok ? r.json() : { resultados: [] }; })
-          .then(function (datos) {
-            lista.innerHTML = "";
-            (datos.resultados || []).forEach(function (p) {
-              const opcion = document.createElement("option");
-              opcion.value = formato(p).valor;
-              opcion.label = formato(p).etiqueta;
-              lista.appendChild(opcion);
-            });
-          })
-          .catch(function () { lista.innerHTML = ""; });
-      }, 250);
-    });
-  }
-
-  conectar("cedula", "sugerencias-cedula", function (p) {
-    return {
-      valor: p.cedula,
-      etiqueta: p.nombre_completo + (p.carrera ? " — " + p.carrera : ""),
-    };
-  });
-  conectar("nombre", "sugerencias-nombre", function (p) {
-    return {
-      valor: p.nombre_completo,
-      etiqueta: p.cedula + (p.carrera ? " — " + p.carrera : ""),
-    };
-  });
-})();
-</script>
+<script src="{% estatico 'js/buscar_expediente.js' %}" data-url="{% url 'academico:autocompletar' %}"></script>
 {% endblock %}

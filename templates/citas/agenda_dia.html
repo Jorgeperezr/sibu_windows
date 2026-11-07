@@ -41,7 +41,7 @@
               <form method="post" action="{% url 'citas:cambiar_estado' c.id %}" class="d-inline">
                 {% csrf_token %}
                 <select name="estado" class="form-select form-select-sm d-inline w-auto"
-                        onchange="this.form.submit()">
+                        data-enviar-al-cambiar>
                   <option value="">Cambiar…</option>
                   {% for val, lbl in estados %}
                     {% if val != c.estado %}<option value="{{ val }}">{{ lbl }}</option>{% endif %}

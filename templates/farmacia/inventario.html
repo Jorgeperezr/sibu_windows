@@ -3,7 +3,7 @@
 {% block content %}
 <div class="sibu-cabecera mb-3"><h1 class="h4 sibu-titulo mb-0">Inventario</h1>
   <div class="d-flex gap-2">
-    <form method="post" onsubmit="return confirm('Se dará de baja todo lote caducado con existencias. ¿Continuar?');">
+    <form method="post" data-confirmar="Se dará de baja todo lote caducado con existencias. ¿Continuar?">
       {% csrf_token %}
       <input type="hidden" name="accion" value="baja_caducados">
       <button class="btn btn-sm btn-outline-danger">Dar de baja caducados</button>

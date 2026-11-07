@@ -550,3 +550,25 @@ details[open] > summary {
   border-radius: .3rem;
   font-size: .75rem;
 }
+
+/* Anchos y ayudas que estaban en `style="..."`. La CSP de producción
+   (`style-src 'self'`) descarta los estilos en línea: el lienzo de marcar
+   fotos perdía `touch-action:none` y en una tableta el dedo desplazaba la
+   página en vez de dibujar. */
+.sibu-logo { max-width: 290px; width: 100%; height: auto; }
+.sibu-logo-inicio { max-width: 320px; width: 100%; height: auto; }
+.sibu-sin-gestos { touch-action: none; }
+.sibu-lienzo { max-width: 100%; height: auto; display: block; margin: auto; cursor: crosshair; touch-action: none; }
+.sibu-lista-alta { max-height: 300px; overflow: auto; }
+.sibu-mw-130 { max-width: 130px; }
+.sibu-mw-190 { max-width: 190px; }
+.sibu-mw-220 { max-width: 220px; }
+.sibu-mw-280 { max-width: 280px; }
+.sibu-mw-560 { max-width: 560px; }
+.sibu-mw-640 { max-width: 640px; }
+.sibu-mw-720 { max-width: 720px; }
+.sibu-mw-820 { max-width: 820px; }
+.sibu-w-80 { width: 80px; }
+.sibu-w-100 { width: 100px; }
+.sibu-w-110 { width: 110px; }
+.sibu-w-190 { width: 190px; }

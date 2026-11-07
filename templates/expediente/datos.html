@@ -23,8 +23,8 @@ cambió no se puede auditar.
 {% if mis_servicios|length > 1 %}
 <form method="get" class="d-flex align-items-center gap-2 mb-3">
   <label class="form-label mb-0 small text-muted" for="servicio">Ajustando para</label>
-  <select name="servicio" id="servicio" class="form-select form-select-sm" style="max-width:280px"
-          onchange="this.form.submit()">
+  <select name="servicio" id="servicio" class="form-select form-select-sm sibu-mw-280"
+          data-enviar-al-cambiar>
     {% for s in mis_servicios %}
     <option value="{{ s.codigo }}" {% if servicio.pk == s.pk %}selected{% endif %}>{{ s.nombre }}</option>
     {% endfor %}
@@ -68,9 +68,9 @@ cambió no se puede auditar.
               {% csrf_token %}
               <input type="hidden" name="servicio" value="{{ servicio.codigo }}">
               <input type="hidden" name="variable" value="{{ f.variable }}">
-              <input name="valor" class="form-control form-control-sm" style="max-width:130px"
+              <input name="valor" class="form-control form-control-sm sibu-mw-130"
                      value="{{ f.valor }}" required>
-              <input name="nota" class="form-control form-control-sm" style="max-width:190px"
+              <input name="nota" class="form-control form-control-sm sibu-mw-190"
                      placeholder="Por qué" value="{{ f.nota }}">
               <button class="btn btn-sm btn-outline-primary">Guardar</button>
             </form>
@@ -78,7 +78,7 @@ cambió no se puede auditar.
           <td class="text-end">
             {% if f.ajustado %}
             <form method="post"
-                  onsubmit="return confirm('¿Volver al dato de matrícula para {{ f.etiqueta }}?');">
+                  data-confirmar="¿Volver al dato de matrícula para {{ f.etiqueta }}?">
               {% csrf_token %}
               <input type="hidden" name="accion" value="quitar">
               <input type="hidden" name="servicio" value="{{ servicio.codigo }}">

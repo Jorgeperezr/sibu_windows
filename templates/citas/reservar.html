@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load estaticos %}
 {% block title %}Reservar cita · SIBU{% endblock %}
 {% block content %}
 <h1 class="h4 sibu-titulo mb-3">Reservar cita</h1>
@@ -53,58 +54,8 @@
   </div>
 </form>
 
-<script>
-const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-document.getElementById('btnBuscar').addEventListener('click', async () => {
-  const cedula = document.getElementById('cedula').value.trim();
-  if (!cedula) return;
-  const r = await fetch(`{% url 'citas:_persona' %}?cedula=${cedula}`);
-  const data = await r.json();
-  const info = document.getElementById('paciente');
-  if (data.encontrado) {
-    document.getElementById('expediente').value = data.expediente_id;
-    info.className = 'form-text text-success';
-    info.textContent = `${data.nombre} (${data.vinculo})`;
-  } else {
-    document.getElementById('expediente').value = '';
-    info.className = 'form-text text-danger';
-    info.textContent = 'No encontrado. Registre a la persona primero.';
-  }
-});
-
-document.getElementById('servicio').addEventListener('change', async (e) => {
-  const sel = document.getElementById('profesional');
-  sel.innerHTML = '<option>Cargando…</option>';
-  const r = await fetch(`{% url 'citas:_profesionales' %}?servicio=${e.target.value}`);
-  const data = await r.json();
-  sel.innerHTML = '<option value="">— Seleccione —</option>' +
-    data.profesionales.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
-});
-
-async function cargarTurnos() {
-  const prof = document.getElementById('profesional').value;
-  const serv = document.getElementById('servicio').value;
-  const fecha = document.getElementById('fecha').value;
-  const sel = document.getElementById('fecha_hora');
-  if (!(prof && serv && fecha)) return;
-  sel.innerHTML = '<option>Consultando…</option>';
-  const r = await fetch(`/api/v1/citas/disponibilidad/?profesional=${prof}&servicio=${serv}&fecha=${fecha}`);
-  const data = await r.json();
-  if (!data.turnos || !data.turnos.length) {
-    sel.innerHTML = '<option value="">Sin turnos disponibles</option>';
-    return;
-  }
-  // La hora la dice el servidor. `toLocaleString` la sacaba de la zona horaria
-  // DEL EQUIPO: en uno mal configurado el desplegable ofrecía «02:00 p. m.»
-  // para el turno de las 09:00 y el aviso de guardado confirmaba «09:00».
-  sel.innerHTML = '<option value="">— Seleccione turno —</option>' +
-    data.turnos.map((t, i) => {
-      const label = (data.etiquetas && data.etiquetas[i]) || t;
-      return `<option value="${t}">${label}</option>`;
-    }).join('');
-}
-['profesional', 'fecha'].forEach(id =>
-  document.getElementById(id).addEventListener('change', cargarTurnos));
-</script>
+<script src="{% estatico 'js/reservar_cita.js' %}"
+        data-url-persona="{% url 'citas:_persona' %}"
+        data-url-profesionales="{% url 'citas:_profesionales' %}"
+        data-url-disponibilidad="/api/v1/citas/disponibilidad/"></script>
 {% endblock %}
