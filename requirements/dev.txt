@@ -10,6 +10,11 @@ bandit==1.8.0
 pip-audit==2.7.3
 django-debug-toolbar==4.4.6
 django-extensions==3.2.3
+
+# El servidor de la portable. Está en portable.txt, pero el CI instala ESTE
+# archivo: sin él, las pruebas del arranque en red fallaban en integración por
+# no encontrar waitress, no por lo que comprueban. Misma versión que portable.txt.
+waitress==3.0.2
 freezegun==1.5.1
 # Extrae el texto de un PDF: la prueba de que el reporte no filtra identidades
 # tiene que leer el documento, no el HTML del que salió.
