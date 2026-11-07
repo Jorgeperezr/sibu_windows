@@ -1,0 +1,23 @@
+{% load estaticos %}{% if permitido %}
+{% comment %}
+Oculto hasta que `dictado.js` encuentre campos que se puedan escribir: sin
+JavaScript, o con la atención cerrada, no queda un botón que no hace nada.
+{% endcomment %}
+<div class="border rounded p-2 mb-3 small" data-dictado hidden>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-dictado-boton aria-pressed="false">Dictar</button>
+    <span class="text-muted" data-dictado-estado aria-live="polite"></span>
+  </div>
+  <div class="mt-2 d-none" data-dictado-vista></div>
+  <p class="text-danger mb-0 mt-1 d-none" data-dictado-mensaje role="alert"></p>
+  <p class="text-muted mb-0 mt-1">
+    Para cambiar de campo, empieza la frase con su nombre. Puntúa diciendo
+    «coma», «punto y seguido» o «punto y aparte».
+    La voz la transcribe el servicio del navegador (Google en Chrome, Microsoft
+    en Edge, Apple en Safari): no dictes nombres ni cédulas. El texto se añade a
+    los campos para que lo revises antes de guardar.
+  </p>
+</div>
+<script src="{% estatico 'js/dictado_texto.js' %}" defer></script>
+<script src="{% estatico 'js/dictado.js' %}" defer></script>
+{% endif %}

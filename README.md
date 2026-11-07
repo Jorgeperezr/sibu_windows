@@ -113,7 +113,9 @@ Todo lo que la portable escribe vive junto a ella, en `datos/`:
 ```
 datos/
   sibu.sqlite3        la base entera
-  media/              evidencias de talleres, documentos, adjuntos
+  media/              evidencias de talleres
+  documentos/         documentos del expediente (no se sirven por /media/)
+  respaldos/          copia diaria de la base y de los documentos
   correo/             los correos que el sistema habría enviado
   clave.txt           la SECRET_KEY de ESTA carpeta
   sibu.log            el registro, que aquí no hay journalctl
@@ -168,6 +170,32 @@ Y una cuarta, por si pasa: tras **5 intentos fallidos** el acceso se bloquea
 15 minutos. La pantalla está en español, dice cuánto falta, aclara que no se ha
 perdido nada e indica `python manage.py changepassword SU_USUARIO` para cuando
 no hay nadie a quien llamar.
+
+## Documentos y dictado
+
+**Documentos del expediente** (botón *Documentos* en el expediente): subir un
+PDF o una foto, **escanear** con varias fotos que se arman en un PDF con realce
+de documento (grises, papel blanco, tinta negra), verlos, descargarlos, y
+**marcar** una foto con lápiz, flecha, círculo, rectángulo o texto. La versión
+marcada es un documento nuevo; la original no se toca. Cada documento es de un
+servicio y lo ve quien puede ver ese servicio: uno de Psicología no sale de
+Psicología, ni su nombre en la lista. Se comprueba el contenido real del
+archivo (no la extensión) y queda en la bitácora quién lo subió, lo abrió o lo
+retiró.
+
+**Dictado por voz** en Medicina, Odontología y Psicopedagogía: se pulsa
+*Dictar*, se dice el nombre del campo («enfermedad actual…», «plan…»,
+«indicaciones…») y su contenido; «coma», «punto y seguido» y «punto y aparte»
+puntúan, y «pieza cuatro seis» se escribe 46. Al detener, el texto se AÑADE a
+los campos para revisarlo antes de guardar. Tres cosas:
+
+- La voz la transcribe el servicio del navegador: **Chrome y Edge envían el
+  audio a Google o Microsoft.** Por eso no existe en Psicología ni en Trabajo
+  Social, y se apaga del todo con `SIBU_DICTADO=False`. Firefox no lo soporta.
+- Necesita internet.
+- Solo funciona en `https` o en el propio equipo (`localhost`). En la WiFi de la
+  oficina los compañeros entran por `http://192.168…`: ahí el navegador lo
+  niega y la pantalla lo dice. Funciona en el computador que comparte SIBU.
 
 ## Documentación
 

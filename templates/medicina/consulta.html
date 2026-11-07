@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dictado %}
 {% block title %}Consulta médica · SIBU{% endblock %}
 {% block content %}
 <div class="sibu-cabecera mb-3">
@@ -39,6 +40,7 @@
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="accion" value="guardar">
+          {% dictado "medicina" %}
           {% comment %}
           Estaba `disabled` y SIEMPRE en blanco: `motivo_consulta` solo se
           rellenaba desde un POST al abrir la consulta, y el expediente abría
@@ -49,23 +51,31 @@
           <div class="mb-3">
             <label class="form-label" for="motivo_consulta">Motivo de consulta</label>
             <input class="form-control" id="motivo_consulta" name="motivo_consulta"
+                   data-dictado-campo data-dictado-titulo="Motivo de consulta"
+                   data-dictado-claves="motivo de consulta|motivo de la consulta|motivo"
                    maxlength="255" value="{{ atencion.motivo_consulta }}"
                    {% if atencion.inmutable %}disabled{% endif %}>
           </div>
           <div class="mb-3">
             <label class="form-label">Enfermedad actual</label>
             <textarea name="enfermedad_actual" rows="4" class="form-control"
+              data-dictado-campo data-dictado-titulo="Enfermedad actual"
+              data-dictado-claves="enfermedad actual|anamnesis|historia actual"
               {% if atencion.inmutable %}disabled{% endif %}>{{ hc.enfermedad_actual }}</textarea>
           </div>
           <div class="mb-3">
             <label class="form-label">Plan de tratamiento</label>
             <textarea name="plan_tratamiento" rows="3" class="form-control"
+              data-dictado-campo data-dictado-titulo="Plan de tratamiento"
+              data-dictado-claves="plan de tratamiento|tratamiento|plan"
               {% if atencion.inmutable %}disabled{% endif %}>{{ hc.plan_tratamiento }}</textarea>
           </div>
           <div class="row">
             <div class="col-md-8 mb-3">
               <label class="form-label">Indicaciones</label>
               <textarea name="indicaciones" rows="2" class="form-control"
+                data-dictado-campo data-dictado-titulo="Indicaciones"
+                data-dictado-claves="indicaciones|indicación|recomendaciones"
                 {% if atencion.inmutable %}disabled{% endif %}>{{ hc.indicaciones }}</textarea>
             </div>
             <div class="col-md-4 mb-3">
@@ -251,7 +261,7 @@
 
     {% if not atencion.inmutable %}
     <form method="post"
-          onsubmit="return confirm('¿Cerrar la atención? Requiere un diagnóstico principal.')">
+          data-confirmar="¿Cerrar la atención? Requiere un diagnóstico principal.">
       {% csrf_token %}
       <input type="hidden" name="accion" value="cerrar">
       <button class="btn btn-success w-100">Cerrar atención</button>

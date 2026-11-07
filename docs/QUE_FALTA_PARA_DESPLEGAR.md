@@ -97,3 +97,24 @@ aislada. Para la Unidad, cliente de la central.
    institucional de cada estamento.
 6. Configurar copias fuera del equipo y **restaurar una** para comprobarla.
 7. Una semana con un servicio antes de abrirlo a todos.
+
+## Opciones para mejorar (vistas en clinube)
+
+Funciones de clinube que encajan en SIBU y aún no se han traído, de más a
+menos útiles para la Unidad:
+
+1. **Consentimiento informado firmado en pantalla.** La persona firma con el
+   dedo en una tableta; se guarda la imagen de la firma, el PDF, la hora, la IP
+   y el equipo. Hoy SIBU tiene firma electrónica del profesional (FirmaEC), no
+   de la persona atendida.
+2. **Certificado de atención prellenado y editable** (asistencia, reposo) que
+   el profesional corrige antes de imprimir.
+3. **Alertas clínicas desde los antecedentes** (alergias, embarazo,
+   anticoagulación) visibles al abrir la consulta y al recetar.
+4. **Vista previa de documentos en un modal**, sin salir de la consulta.
+5. **Imprimir a PDF desde el navegador** como alternativa a WeasyPrint en la
+   portable de Windows, donde faltan las librerías GTK.
+6. **Dictado en el propio equipo** (Whisper u otro motor local) para que el
+   audio no salga hacia Google o Microsoft. Sería la condición para ofrecerlo
+   alguna vez en Psicología, y aun así es una decisión del servicio.
+

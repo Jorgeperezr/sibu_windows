@@ -181,6 +181,10 @@ MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
 # comprobar quién pide, y un informe de Psicología no puede estar a una URL de
 # distancia. Salen solo por `documentos:archivo`, que mira el acceso.
 SIBU_DOCUMENTOS_ROOT = env("SIBU_DOCUMENTOS_ROOT", default=str(BASE_DIR / "privado"))
+# Dictado por voz en las consultas. El reconocimiento lo hace el navegador y
+# Chrome/Edge envían el audio a Google/Microsoft: quien no pueda aceptarlo lo
+# apaga aquí y el botón desaparece de todas las pantallas.
+SIBU_DICTADO = env.bool("SIBU_DICTADO", default=True)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

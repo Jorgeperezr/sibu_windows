@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dictado %}
 {% block title %}Ficha psicopedagógica — SIBU{% endblock %}
 {% block content %}
 <h1 class="h4 sibu-titulo">{{ ficha.atencion.expediente.persona.nombre_completo }}</h1>
@@ -37,7 +38,11 @@
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="accion" value="plan">
-          <textarea name="plan_intervencion" class="form-control form-control-sm" rows="5">{{ ficha.plan_intervencion }}</textarea>
+          {% dictado "psicopedagogia" %}
+          <textarea name="plan_intervencion" class="form-control form-control-sm" rows="5"
+                    aria-label="Plan de intervención"
+                    data-dictado-campo data-dictado-titulo="Plan de intervención"
+                    data-dictado-claves="plan de intervención|plan">{{ ficha.plan_intervencion }}</textarea>
           <button class="btn btn-sm btn-primary mt-2">Guardar</button>
         </form>
       </div>
