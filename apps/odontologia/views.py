@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.core.models import CIE10, Servicio
 from apps.core.selectors import diagnosticos_por_servicio
 from apps.expediente.models import Atencion, Expediente
+from apps.expediente.selectors import alertas_activas
 from apps.expediente.services import borrador_abierto, exigir_atencion_editable
 from apps.medicina.models import Diagnostico
 from apps.medicina.services import agregar_diagnostico
@@ -238,6 +239,7 @@ def consulta(request, pk):
         "odontologia/consulta.html",
         {
             "hc": hc,
+            "alertas": list(alertas_activas(hc.atencion.expediente)),
             "atencion": hc.atencion,
             "persona": hc.atencion.expediente.persona,
             "superior": _arcada(ARCADA_SUPERIOR, vigente),

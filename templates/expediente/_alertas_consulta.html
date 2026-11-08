@@ -1,0 +1,13 @@
+{% comment %}
+Las alertas clínicas del expediente, arriba de la consulta. Antes solo se
+veían en la ficha del expediente: quien recetaba desde la consulta no las
+tenía delante. Las mismas que la ficha (`alertas_activas`).
+{% endcomment %}
+{% if alertas %}
+<div class="alert alert-danger py-2 mb-3" role="alert">
+  <strong>Alertas:</strong>
+  {% for a in alertas %}
+    <span class="badge bg-danger ms-1">{{ a.get_tipo_display }}: {{ a.descripcion }}</span>
+  {% endfor %}
+</div>
+{% endif %}

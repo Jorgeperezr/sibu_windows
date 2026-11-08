@@ -572,3 +572,11 @@ details[open] > summary {
 .sibu-w-100 { width: 100px; }
 .sibu-w-110 { width: 110px; }
 .sibu-w-190 { width: 190px; }
+
+/* El certificado impreso: solo el documento, sin menú ni avisos. */
+.sibu-firma { border-top: 1px solid #211915; width: 60%; margin-left: auto; margin-right: auto; }
+@media print {
+  .sibu-side, .sibu-top, .sibu-no-imprimir, .alert, footer { display: none !important; }
+  .sibu-main, .sibu-contenido { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .sibu-certificado { border: 0 !important; box-shadow: none !important; }
+}

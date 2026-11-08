@@ -10,7 +10,9 @@ from apps.core.mensajes import detalle_de_error
 from apps.core.models import CIE10, Servicio
 from apps.core.selectors import diagnosticos_por_servicio
 from apps.enfermeria.services import ultimo_triaje
+from apps.expediente import alertas_receta
 from apps.expediente.models import Atencion, Expediente
+from apps.expediente.selectors import alertas_activas
 from apps.expediente.services import borrador_abierto, exigir_atencion_editable
 from apps.farmacia import services as farmacia_services
 from apps.farmacia.models import Medicamento
@@ -144,6 +146,26 @@ def consulta(request, pk):
             # añaden de uno en uno. Si ya hay una receta abierta de esta
             # atención se le suma; si no, se emite una nueva.
             try:
+                medicamento = Medicamento.objects.get(pk=request.POST["medicamento"])
+                choques = alertas_receta.choques(
+                    medicamento,
+                    alertas_receta.alertas_del_expediente(alertas_activas(hc.atencion.expediente)),
+                )
+                # Avisa, no decide: si choca con una alerta, hace falta
+                # confirmarlo. La pantalla lo pregunta; sin JavaScript, o si
+                # alguien envía el formulario a mano, lo exige el servidor.
+                if choques and request.POST.get("acepto_alerta") != "1":
+                    messages.error(
+                        request,
+                        "No se añadió: "
+                        + alertas_receta.aviso(choques)
+                        + " Si aun así quiere recetarlo, vuelva a añadirlo y confírmelo.",
+                    )
+                    return redirect("medicina:consulta", pk=hc.pk)
+                if choques:
+                    messages.warning(
+                        request, "Recetado pese a la alerta: " + alertas_receta.aviso(choques)
+                    )
                 item = {
                     "medicamento_id": request.POST["medicamento"],
                     "cantidad_prescrita": request.POST.get("cantidad", 0),
@@ -187,6 +209,8 @@ def consulta(request, pk):
 
         return redirect("medicina:consulta", pk=hc.pk)
 
+    alertas = list(alertas_activas(hc.atencion.expediente))
+    alertas_de_receta = alertas_receta.alertas_del_expediente(alertas)
     return render(
         request,
         "medicina/consulta.html",
@@ -201,10 +225,106 @@ def consulta(request, pk):
             "cie10_disponibles": diagnosticos_por_servicio("medicina"),
             # Los catálogos para los formularios. Sin ellos habría que teclear
             # ids, que es lo que hacía falta antes de tener estas pantallas.
-            "medicamentos": Medicamento.objects.filter(activo=True).order_by("dci"),
+            "medicamentos": _con_choques(
+                Medicamento.objects.filter(activo=True).order_by("dci"), alertas_de_receta
+            ),
+            "alertas": alertas,
             "examenes_catalogo": Examen.objects.filter(activo=True).order_by("nombre"),
             # Una atención firmada no admite receta ni orden; el servicio lo
             # valida igual, pero un formulario que siempre falla estorba.
             "editable": not hc.atencion.inmutable,
+        },
+    )
+
+
+def _con_choques(medicamentos, alertas_de_receta):
+    """Cada medicamento con su aviso ya escrito (`choque`), o vacío."""
+    lista = list(medicamentos)
+    for m in lista:
+        m.choque = alertas_receta.aviso(alertas_receta.choques(m, alertas_de_receta))
+    return lista
+
+
+@login_required
+def certificado(request, pk):
+    """
+    Certificado de atención, prellenado y editable, para imprimir desde el
+    navegador. Traído de clinube.
+
+    Se rellena con lo que ya hay —la fecha y la hora de la atención, quién
+    atendió, los días de reposo— y todo se puede cambiar antes de imprimir.
+    El diagnóstico NO va por omisión: un certificado suele acabar en manos de
+    un empleador o de un docente, y el diagnóstico es de la persona. Quien
+    atiende lo incluye si hace falta.
+
+    No se guarda: se imprime (o se guarda como PDF desde el navegador, que es
+    lo que hay en la portable de Windows, sin WeasyPrint). Queda en la
+    bitácora que se emitió, con qué días de reposo y si llevaba diagnóstico.
+    """
+    from django.utils import timezone
+
+    from apps.auditoria.models import LogAuditoria
+
+    hc = get_object_or_404(
+        AtencionMedicina.objects.select_related(
+            "atencion__expediente__persona", "atencion__profesional__usuario"
+        ),
+        pk=pk,
+    )
+    verificar_acceso_atencion(request.user, hc.atencion)
+    atencion = hc.atencion
+    local = timezone.localtime(atencion.fecha_hora)
+    principal = atencion.diagnosticos.select_related("cie10").filter(principal=True).first()
+    profesional = atencion.profesional
+
+    if request.method == "POST":
+        datos = {
+            c: request.POST.get(c, "").strip()
+            for c in (
+                "lugar",
+                "fecha",
+                "hora_inicio",
+                "hora_fin",
+                "dias_reposo",
+                "diagnostico",
+                "observaciones",
+            )
+        }
+        incluir = request.POST.get("incluir_diagnostico") == "1"
+        if not incluir:
+            datos["diagnostico"] = ""
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            rol_activo=getattr(request.user, "rol_principal", ""),
+            accion=LogAuditoria.Accion.PRINT,
+            modulo="medicina",
+            entidad="CertificadoAtencion",
+            entidad_id=str(atencion.pk),
+            expediente_id=atencion.expediente_id,
+            servicio="medicina",
+            detalle={"dias_reposo": datos["dias_reposo"], "con_diagnostico": incluir},
+        )
+        return render(
+            request,
+            "medicina/certificado_impreso.html",
+            {"datos": datos, "persona": atencion.expediente.persona, "profesional": profesional},
+        )
+
+    return render(
+        request,
+        "medicina/certificado.html",
+        {
+            "hc": hc,
+            "persona": atencion.expediente.persona,
+            "profesional": profesional,
+            "inicial": {
+                "lugar": "Loja",
+                "fecha": local.date().isoformat(),
+                "hora_inicio": local.strftime("%H:%M"),
+                "dias_reposo": hc.dias_reposo if hc.dias_reposo is not None else 0,
+                "diagnostico": f"{principal.cie10.codigo} — {principal.cie10.descripcion}"
+                if principal
+                else "",
+            },
         },
     )

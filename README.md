@@ -62,7 +62,9 @@ se trabaja):
    **Redes privadas** y pulse *Permitir acceso*. Si la WiFi está marcada como
    *Pública*, cámbiela a *Privada* (*Configuración → Red e Internet*).
 3. La ventana muestra la dirección que hay que dictar a los compañeros, por
-   ejemplo `http://RECEPCION:8000`. **No cierre esa ventana ni apague o
+   ejemplo `http://RECEPCION` (si el puerto 80 está ocupado por otro
+   programa, `http://RECEPCION:8000`; las carpetas que ya guardaron la
+   dirección con `:8000` siguen entrando). **No cierre esa ventana ni apague o
    suspenda el equipo** mientras los demás trabajen: los datos están ahí.
 
 **En el computador de cada compañero:**
@@ -93,14 +95,68 @@ cuenta nace con Administración General**, porque si no, nadie podría conceder
 servicios a nadie. Esa pantalla solo existe en la portable, solo desde el
 propio computador y solo mientras no hay ninguna cuenta.
 
-Desde ahí se da de alta al resto en *Perfiles → Nueva cuenta*:
+Desde ahí se da de alta al resto en *Perfiles → Nueva cuenta*, en un solo
+formulario:
 
-1. Administración General crea la cuenta con la cédula y una **clave
-   temporal**, que le dice a su dueño.
-2. La misma pantalla lleva a asignar sección y servicios.
-3. Su dueño entra y **el sistema le obliga a cambiar la clave** antes de ver
+1. **Credenciales:** el correo (con él ingresa) y una clave, que puede ser un
+   **PIN de 4 dígitos**.
+2. **Quién es:** nombres y apellidos; la cédula es opcional (hace falta para
+   firmar).
+3. **Dónde labora y qué funciones tiene:** la sección, el rol (qué módulos ve)
+   y los servicios en los que atiende. Asignar Psicología va marcado: abre su
+   contenido sellado.
+4. Su dueño entra y **el sistema le obliga a cambiar la clave** antes de ver
    nada: si la cuenta es de Psicología, una clave que conocen dos personas
    sería una puerta al contenido sellado.
+
+Después, *Perfiles → Editar* corrige todo eso y da una clave nueva a quien la
+olvidó (vuelve a ser temporal). El profesional, desde *Mi perfil*, cambia sus
+datos de contacto y su clave, **pero no su sección, su rol ni sus servicios**:
+eso sería ampliarse el acceso a uno mismo. Cada cambio queda en la bitácora.
+
+### El ingreso
+
+- **Dirección corta:** `http://NOMBRE-DEL-EQUIPO` lleva directo a
+  `/ingresar/`. En el propio computador, `http://127.0.0.1`.
+- **Con el correo o con la cédula**, y una clave breve. No valen las que se
+  prueban primero: 1234, 0000, repetidas, secuencias, las más usadas ni las
+  que salen de la cédula.
+- **Bloqueo:** tras 5 fallos el equipo espera 15 minutos; tras **10 fallos
+  seguidos la cuenta queda bloqueada** hasta que Administración General la
+  abra desde *Perfiles* (botón *Desbloquear*). Así, con un PIN de 4 dígitos,
+  quien intenta adivinar tiene 10 intentos sobre casi 10 000. Si la
+  bloqueada es la de Administración, se abre entrando desde el propio
+  computador servidor, o con `python manage.py desbloquear <correo>` en un
+  servidor.
+- **La sesión dura la jornada:** se renueva mientras se trabaja y se cierra
+  tras 10 horas sin usarla (`SIBU_SESION_HORAS`). Cerrar el navegador no la
+  cierra: en un equipo compartido, use *Salir*.
+
+### Copias de seguridad
+
+- **Cada día**, la primera vez que se abre SIBU, y **cada hora se comprueba**
+  mientras sigue abierto (el servidor de la oficina se deja abierto días).
+- **Antes de actualizar:** si la versión nueva trae cambios en la base, se
+  copia ANTES de tocarla (`antes-de-actualizar-…`, se guardan 5). Si esa copia
+  no se puede hacer, SIBU no se actualiza y la base queda como estaba.
+- **En otro disco:** escriba la carpeta de un disco externo o de otra unidad
+  en `portable\copia_externa.txt` (por ejemplo `E:\SIBU-respaldos`). Cada
+  copia se lleva también allí y se comprueba que llegó entera. Si el disco no
+  está conectado, se avisa y se lleva cuando vuelva.
+- Las copias llevan la base entera, Psicología incluida: el disco externo
+  tiene que estar bajo llave y, mejor, cifrado (BitLocker).
+
+### Actualizar a una versión nueva
+
+Solo en el computador que comparte SIBU; los compañeros no hacen nada.
+
+1. Cierre SIBU en ese computador.
+2. Descomprima el zip nuevo en otra carpeta.
+3. Lleve a la carpeta nueva, desde la vieja: `datos\` entera y, de
+   `portable\`, `compartir_en_red.txt` y `copia_externa.txt` si existen.
+4. Abra SIBU con el icono de siempre. Copia la base, la adapta a la versión
+   nueva y arranca.
+5. Guarde la carpeta vieja unos días: es la vuelta atrás.
 
 Luego cada profesional declara su horario en *Mi horario*; Farmacia da de alta
 sus medicamentos en *Inventario* y Laboratorio sus exámenes en *Catálogo de
@@ -196,6 +252,16 @@ los campos para revisarlo antes de guardar. Tres cosas:
 - Solo funciona en `https` o en el propio equipo (`localhost`). En la WiFi de la
   oficina los compañeros entran por `http://192.168…`: ahí el navegador lo
   niega y la pantalla lo dice. Funciona en el computador que comparte SIBU.
+
+**Alertas al recetar** (Medicina): las alertas del expediente —alergias,
+gestación, anticoagulantes— salen arriba de la consulta, y el medicamento que
+choca con una lleva ⚠ en la lista. Recetarlo pide confirmación diciendo de qué
+alerta sale el aviso («Amoxicilina es una penicilina y hay alergia a
+penicilinas»). Avisa, no decide.
+
+**Certificado de atención** (Medicina): rellenado con la fecha, la hora, quien
+atendió y los días de reposo; se cambia lo que haga falta y se imprime o se
+guarda como PDF desde el navegador. El diagnóstico solo va si se marca.
 
 ## Documentación
 

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Certificado de atención · SIBU{% endblock %}
+{% block content %}
+<div class="sibu-cabecera">
+  <div>
+    <h1 class="h4 sibu-titulo mb-0">Certificado de atención</h1>
+    <small class="text-muted">{{ persona.nombre_completo }} · {{ persona.cedula }}</small>
+  </div>
+  <a href="{% url 'medicina:consulta' hc.pk %}" class="btn btn-sm btn-outline-secondary">Volver</a>
+</div>
+
+<div class="alert alert-secondary small">
+  Viene rellenado con lo que ya consta en la atención; cambie lo que haga falta
+  antes de imprimirlo. El diagnóstico no va salvo que lo marque: el certificado
+  suele llegar a un empleador o a un docente.
+</div>
+
+<form method="post" class="card">
+  {% csrf_token %}
+  <div class="card-body row g-3">
+    <div class="col-md-4">
+      <label class="form-label" for="c-lugar">Lugar</label>
+      <input class="form-control" id="c-lugar" name="lugar" value="{{ inicial.lugar }}" maxlength="60">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="c-fecha">Fecha de la atención</label>
+      <input class="form-control" type="date" id="c-fecha" name="fecha" value="{{ inicial.fecha }}" required>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="c-inicio">Desde</label>
+      <input class="form-control" type="time" id="c-inicio" name="hora_inicio" value="{{ inicial.hora_inicio }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="c-fin">Hasta</label>
+      <input class="form-control" type="time" id="c-fin" name="hora_fin">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="c-reposo">Días de reposo</label>
+      <input class="form-control" type="number" min="0" max="90" id="c-reposo" name="dias_reposo"
+             value="{{ inicial.dias_reposo }}">
+    </div>
+    <div class="col-md-9">
+      <div class="form-check mb-1">
+        <input class="form-check-input" type="checkbox" name="incluir_diagnostico" value="1" id="c-incluir">
+        <label class="form-check-label" for="c-incluir">Incluir el diagnóstico</label>
+      </div>
+      <input class="form-control" id="c-dx" name="diagnostico" value="{{ inicial.diagnostico }}"
+             maxlength="255" aria-label="Diagnóstico">
+    </div>
+    <div class="col-12">
+      <label class="form-label" for="c-obs">Observaciones</label>
+      <textarea class="form-control" id="c-obs" name="observaciones" rows="2" maxlength="500"></textarea>
+    </div>
+  </div>
+  <div class="card-footer">
+    <button class="btn btn-primary">Preparar para imprimir</button>
+  </div>
+</form>
+{% endblock %}

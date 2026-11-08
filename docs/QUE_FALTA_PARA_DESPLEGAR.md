@@ -107,13 +107,13 @@ menos útiles para la Unidad:
    dedo en una tableta; se guarda la imagen de la firma, el PDF, la hora, la IP
    y el equipo. Hoy SIBU tiene firma electrónica del profesional (FirmaEC), no
    de la persona atendida.
-2. **Certificado de atención prellenado y editable** (asistencia, reposo) que
-   el profesional corrige antes de imprimir.
-3. **Alertas clínicas desde los antecedentes** (alergias, embarazo,
-   anticoagulación) visibles al abrir la consulta y al recetar.
+2. **Certificado de atención en Odontología** (en Medicina ya está), y que
+   imprimir desde el navegador sustituya a WeasyPrint en los demás informes de
+   la portable de Windows.
+3. **Copia de seguridad cifrada con frase**, para la copia que va a un disco
+   externo: hoy depende de cifrar ese disco (BitLocker).
 4. **Vista previa de documentos en un modal**, sin salir de la consulta.
-5. **Imprimir a PDF desde el navegador** como alternativa a WeasyPrint en la
-   portable de Windows, donde faltan las librerías GTK.
+5. **Avisos del día**: quién llegó y espera, la próxima cita.
 6. **Dictado en el propio equipo** (Whisper u otro motor local) para que el
    audio no salga hacia Google o Microsoft. Sería la condición para ofrecerlo
    alguna vez en Psicología, y aun así es una decisión del servicio.

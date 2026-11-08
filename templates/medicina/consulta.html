@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load dictado %}
+{% load dictado estaticos %}
 {% block title %}Consulta médica · SIBU{% endblock %}
 {% block content %}
 <div class="sibu-cabecera mb-3">
@@ -11,8 +11,12 @@
       <span class="badge bg-secondary">{{ atencion.get_estado_display }}</span>
     </small>
   </div>
-  <a href="{% url 'expediente:detalle' atencion.expediente_id %}"
-     class="btn btn-sm btn-outline-secondary">Expediente</a>
+  <div class="d-flex gap-2">
+    <a href="{% url 'medicina:certificado' hc.pk %}"
+       class="btn btn-sm btn-outline-primary">Certificado de atención</a>
+    <a href="{% url 'expediente:detalle' atencion.expediente_id %}"
+       class="btn btn-sm btn-outline-secondary">Expediente</a>
+  </div>
 </div>
 
 {% if triaje %}
@@ -31,6 +35,8 @@
   <a href="{% url 'enfermeria:triaje' atencion.expediente_id %}">Registrar signos vitales</a>.
 </div>
 {% endif %}
+
+{% include "expediente/_alertas_consulta.html" %}
 
 <div class="row g-3">
   <div class="col-lg-7">
@@ -178,12 +184,14 @@
         <form method="post" class="row g-2 border-top pt-3">
           {% csrf_token %}
           <input type="hidden" name="accion" value="recetar">
+          <input type="hidden" name="acepto_alerta" value="">
           <div class="col-12">
             <label class="form-label small" for="medicamento">Medicamento</label>
-            <select id="medicamento" name="medicamento" class="form-select form-select-sm" required>
+            <select id="medicamento" name="medicamento" class="form-select form-select-sm" required
+                    data-alerta-receta>
               <option value="">—</option>
               {% for m in medicamentos %}
-                <option value="{{ m.pk }}">{{ m.dci }} {{ m.concentracion }}</option>
+                <option value="{{ m.pk }}"{% if m.choque %} data-choque="{{ m.choque }}"{% endif %}>{% if m.choque %}⚠ {% endif %}{{ m.dci }} {{ m.concentracion }}</option>
               {% endfor %}
             </select>
           </div>
@@ -269,4 +277,5 @@
     {% endif %}
   </div>
 </div>
+<script src="{% estatico 'js/receta_alertas.js' %}"></script>
 {% endblock %}
