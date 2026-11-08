@@ -164,3 +164,73 @@ def test_al_rotar_se_va_tambien_su_zip(base_wal, tmp_path, settings):
         "sibu-20261103-080000-documentos.zip",
         "sibu-20261103-080000.sqlite3",
     ]
+
+
+# ------------------------------------------------- antes de actualizar y fuera
+
+
+def test_las_de_antes_de_actualizar_no_las_empujan_las_diarias(base_wal, tmp_path):
+    """Tras una actualización que salió mal se tarda días en notarlo: las
+    catorce diarias siguientes no pueden llevarse la copia de antes."""
+    conexion, _ruta = base_wal
+    destino = tmp_path / "respaldos"
+    previa = modulo.respaldar(
+        destino,
+        conservar=5,
+        ahora=datetime(2026, 11, 1, 7),
+        conexion=conexion,
+        prefijo=modulo.PREFIJO_ACTUALIZACION,
+    )
+    for dia in range(2, 8):
+        modulo.respaldar(destino, conservar=2, ahora=datetime(2026, 11, dia, 8), conexion=conexion)
+
+    assert previa.exists()
+    assert len(modulo.respaldos_en(destino)) == 2
+
+
+def test_la_copia_externa_llega_entera_y_rota(base_wal, tmp_path, settings):
+    conexion, _ruta = base_wal
+    (tmp_path / "documentos").mkdir()
+    (tmp_path / "documentos" / "a.pdf").write_bytes(b"%PDF-1.4")
+    settings.SIBU_DOCUMENTOS_ROOT = str(tmp_path / "documentos")
+    externa = tmp_path / "disco_externo"
+    externa.mkdir()
+    for dia in range(1, 4):
+        copia = modulo.respaldar(
+            tmp_path / "respaldos", ahora=datetime(2026, 11, dia, 8), conexion=conexion
+        )
+        modulo.copiar_a(copia, externa, conservar=2)
+
+    nombres = sorted(p.name for p in externa.iterdir())
+    assert nombres == [
+        "sibu-20261102-080000-documentos.zip",
+        "sibu-20261102-080000.sqlite3",
+        "sibu-20261103-080000-documentos.zip",
+        "sibu-20261103-080000.sqlite3",
+    ], "sin .parcial y con la rotación propia"
+    assert _filas(externa / "sibu-20261103-080000.sqlite3") == 50
+
+
+def test_sin_el_disco_externo_se_dice(base_wal, tmp_path):
+    conexion, _ruta = base_wal
+    copia = modulo.respaldar(tmp_path / "respaldos", conexion=conexion)
+    with pytest.raises(CommandError, match="conectado el disco"):
+        modulo.copiar_a(copia, tmp_path / "no_esta")
+
+
+def test_una_copia_externa_distinta_se_descarta(base_wal, tmp_path, monkeypatch):
+    conexion, _ruta = base_wal
+    copia = modulo.respaldar(tmp_path / "respaldos", conexion=conexion)
+    externa = tmp_path / "externa"
+    externa.mkdir()
+    huellas = iter(["mala", "buena"])
+    monkeypatch.setattr(modulo, "_huella", lambda archivo: next(huellas))
+
+    with pytest.raises(CommandError, match="no salió igual"):
+        modulo.copiar_a(copia, externa)
+    assert list(externa.iterdir()) == [], "ni el archivo ni su .parcial"
+
+
+@pytest.mark.django_db
+def test_con_la_base_al_dia_no_hay_migraciones_pendientes():
+    assert modulo.hay_migraciones_pendientes() is False

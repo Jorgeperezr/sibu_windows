@@ -1,0 +1,14 @@
+# Copie este archivo como `copia_externa.txt` —sin `.example`— y escriba
+# debajo la carpeta de OTRO disco (uno externo, una memoria, otra unidad)
+# donde llevar también cada copia de seguridad. La de datos\respaldos está en
+# el mismo disco que la base: si el disco muere, mueren las dos.
+#
+# Cada copia se comprueba al llegar. Si el disco no está conectado, SIBU lo
+# avisa y la lleva cuando vuelva.
+#
+# Las copias llevan la base entera, Psicología incluida: ese disco tiene que
+# estar bajo llave y, mejor, cifrado (BitLocker).
+#
+# Las líneas que empiezan por `#` se ignoran.
+
+E:\SIBU-respaldos
