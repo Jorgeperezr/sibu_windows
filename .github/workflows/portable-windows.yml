@@ -108,6 +108,19 @@ jobs:
           $r = Invoke-WebRequest "http://${ip}:8000/cuentas/login/" -UseBasicParsing
           if ($r.Content -notmatch "Ingresar") { throw "Desde la red no se ve el ingreso" }
 
+          # La dirección corta: el puerto 80, sin «:8000». Si el runner lo
+          # tuviera ocupado SIBU sigue en el 8000 y lo dice en su ventana.
+          $tcp80 = New-Object System.Net.Sockets.TcpClient
+          $hay80 = $false
+          try { $tcp80.Connect("127.0.0.1", 80); $hay80 = $true } catch { } finally { $tcp80.Close() }
+          if ($hay80) {
+            $r = Invoke-WebRequest "http://${ip}/" -UseBasicParsing
+            if ($r.Content -notmatch "Correo o usuario") { throw "http://${ip}/ no lleva al ingreso" }
+            Write-Host "La dirección corta http://${ip}/ lleva al ingreso." -ForegroundColor Green
+          } else {
+            Write-Host "El puerto 80 está ocupado en el runner: SIBU quedó solo en el 8000."
+          }
+
           $bloqueada = $false
           try { Invoke-WebRequest "http://${ip}:8000/cuentas/primera/" -UseBasicParsing | Out-Null }
           catch { if ($_.Exception.Response.StatusCode.value__ -eq 404) { $bloqueada = $true } }

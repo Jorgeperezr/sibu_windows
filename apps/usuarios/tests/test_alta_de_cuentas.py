@@ -342,32 +342,6 @@ def test_solo_administracion_general_da_de_alta(db, client):
 
 
 @pytest.mark.django_db
-def test_la_pantalla_crea_y_lleva_a_asignar_servicios(admin, client):
-    """
-    Una cuenta sin servicios ve el sistema y no puede hacer nada en él: el
-    alta tiene que terminar donde se arregla eso.
-    """
-    client.login(username=admin.username, password=CLAVE_ADMIN)
-
-    respuesta = client.post(
-        reverse("usuarios:nueva_cuenta"),
-        {
-            "cedula": "1700000001",
-            "nombres": "Lucía",
-            "apellidos": "Pardo",
-            "correo": "lucia.pardo@unl.edu.ec",
-            "rol": Rol.PROFESIONAL,
-            "clave": TEMPORAL,
-        },
-    )
-
-    usuario = Usuario.objects.get(username="1700000001")
-    perfil = PerfilProfesional.objects.get(usuario=usuario)
-    assert respuesta.status_code == 302
-    assert respuesta.headers["Location"] == reverse("usuarios:editar_perfil", args=[perfil.pk])
-
-
-@pytest.mark.django_db
 def test_un_error_devuelve_lo_tecleado_menos_la_clave(admin, client):
     """Volver a escribirlo todo por una cédula mal copiada no es aceptable."""
     client.login(username=admin.username, password=CLAVE_ADMIN)

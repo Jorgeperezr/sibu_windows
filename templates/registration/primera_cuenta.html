@@ -27,7 +27,7 @@ portable promete que no hace falta.
               <label class="form-label" for="cedula">Cédula</label>
               <input id="cedula" name="cedula" class="form-control" required maxlength="13"
                      inputmode="numeric" value="{{ datos.cedula|default:'' }}">
-              <div class="form-text">Con ella ingresará.</div>
+              <div class="form-text">Con ella (o con su correo) ingresará.</div>
             </div>
             <div class="col-md-4">
               <label class="form-label" for="nombres">Nombres</label>
@@ -39,14 +39,23 @@ portable promete que no hace falta.
               <input id="apellidos" name="apellidos" class="form-control" required
                      value="{{ datos.apellidos|default:'' }}">
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="clave">Contraseña</label>
-              <input id="clave" name="clave" type="password" class="form-control" required
-                     autocomplete="new-password">
-              <div class="form-text">Al menos 8 caracteres, que no sea su cédula.</div>
+            <div class="col-12">
+              <label class="form-label" for="correo">Correo</label>
+              <input id="correo" name="correo" type="email" class="form-control"
+                     autocapitalize="none" value="{{ datos.correo|default:'' }}">
+              <div class="form-text">Opcional: para ingresar con él en vez de la cédula.</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label" for="clave2">Repita la contraseña</label>
+              <label class="form-label" for="clave">Clave o PIN</label>
+              <input id="clave" name="clave" type="password" class="form-control" required
+                     autocomplete="new-password">
+              <div class="form-text">
+                Al menos 4 caracteres (un PIN vale), que no salga de su cédula
+                ni sea de las más usadas, como 1234.
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="clave2">Repita la clave</label>
               <input id="clave2" name="clave2" type="password" class="form-control" required
                      autocomplete="new-password">
             </div>

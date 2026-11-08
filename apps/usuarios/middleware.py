@@ -51,3 +51,32 @@ class ExigirCambioDeClave:
         # `resolver_match` todavía no está resuelto cuando el middleware corre
         # antes de la vista, así que se compara también la ruta escrita.
         return ruta not in {reverse(n) for n in NOMBRES_PERMITIDOS}
+
+
+class RenovarSesion:
+    """
+    La sesión dura mientras se trabaja: se renueva al usarla, como mucho una
+    vez cada `CADA_S` segundos.
+
+    Antes caducaba a los 15 minutos de INGRESAR, aunque se estuviera
+    escribiendo, y la consulta a medias se perdía en el envío. Con
+    `SESSION_SAVE_EVERY_REQUEST` se arreglaba, pero cada página escribía la
+    sesión: tres consultas más en todas, y en la portable cada escritura
+    compite en SQLite con el guardado de un compañero.
+    """
+
+    CADA_S = 5 * 60
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        import time
+
+        sesion = getattr(request, "session", None)
+        usuario = getattr(request, "user", None)
+        if sesion is not None and usuario is not None and usuario.is_authenticated:
+            ahora = int(time.time())
+            if ahora - int(sesion.get("_renovada", 0)) >= self.CADA_S:
+                sesion["_renovada"] = ahora  # marca la sesión: se guarda con su nueva caducidad
+        return self.get_response(request)

@@ -263,7 +263,7 @@ def test_la_pantalla_exige_el_mismo_permiso_que_la_busqueda(escenario):
 def test_sin_sesion_no_se_entra(escenario):
     respuesta = Client().get(reverse("expediente:alta_masiva"))
     assert respuesta.status_code == 302
-    assert "/cuentas/login/" in respuesta.url
+    assert reverse("login") in respuesta.url
 
 
 @pytest.mark.django_db

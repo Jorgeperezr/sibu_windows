@@ -167,7 +167,7 @@ def test_la_bandeja_es_solo_de_quien_es_del_servicio(escenario):
 def test_la_bandeja_exige_sesion(escenario):
     respuesta = Client().get(reverse("trabajo_social:bandeja"))
     assert respuesta.status_code == 302
-    assert "/cuentas/login/" in respuesta.url
+    assert reverse("login") in respuesta.url
 
 
 @pytest.mark.django_db

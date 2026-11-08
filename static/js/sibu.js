@@ -54,3 +54,33 @@ document.addEventListener("click", function (evento) {
     evento.preventDefault();
   }
 }, true);
+
+// <button data-alternar-clave="id_password">: enseña u oculta la clave mientras
+// se escribe (con un PIN es fácil equivocarse sin verlo). Al enviar el
+// formulario se vuelve a ocultar: si alguien la deja a la vista y se levanta,
+// no queda así en la pantalla siguiente. Traído de clinube.
+document.addEventListener("click", function (evento) {
+  var boton = evento.target.closest("[data-alternar-clave]");
+  if (!boton) return;
+  var campo = document.getElementById(boton.getAttribute("data-alternar-clave"));
+  if (!campo) return;
+  var ver = campo.type === "password";
+  campo.type = ver ? "text" : "password";
+  boton.setAttribute("aria-pressed", ver ? "true" : "false");
+  boton.textContent = ver ? "Ocultar" : "Ver";
+});
+document.addEventListener("submit", function (evento) {
+  Array.prototype.forEach.call(
+    evento.target.querySelectorAll("[data-alternar-clave]"),
+    function (boton) {
+      var campo = document.getElementById(boton.getAttribute("data-alternar-clave"));
+      if (campo) campo.type = "password";
+    }
+  );
+}, true);
+
+// <button data-imprimir>: la ventana de impresión del navegador, que también
+// guarda como PDF. En la portable de Windows no hay WeasyPrint.
+document.addEventListener("click", function (evento) {
+  if (evento.target.closest("[data-imprimir]")) window.print();
+});

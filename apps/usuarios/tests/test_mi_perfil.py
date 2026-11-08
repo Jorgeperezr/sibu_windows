@@ -175,7 +175,7 @@ def test_una_cedula_invalida_avisa_y_no_guarda_nada(escenario):
 def test_la_ficha_propia_exige_sesion(escenario):
     respuesta = Client().get(reverse("usuarios:mi_perfil"))
     assert respuesta.status_code == 302
-    assert "/cuentas/login/" in respuesta.url
+    assert reverse("login") in respuesta.url
 
 
 @pytest.mark.django_db

@@ -67,6 +67,12 @@ class Usuario(AbstractUser):
         verbose_name="debe cambiar la clave",
         help_text="La cuenta tiene una clave temporal y no puede usarse hasta cambiarla.",
     )
+    # Con un PIN de 4 dígitos hay 10 000 claves posibles: el bloqueo de 15
+    # minutos por equipo de axes, solo, deja probarlas todas en unas semanas.
+    # Tras `SIBU_BLOQUEO_CUENTA` fallos seguidos la cuenta queda cerrada hasta
+    # que Administración General la abra: diez intentos sobre diez mil.
+    intentos_fallidos = models.PositiveSmallIntegerField(default=0)
+    bloqueada_desde = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "usuario"

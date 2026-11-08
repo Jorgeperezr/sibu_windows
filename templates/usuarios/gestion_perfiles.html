@@ -57,7 +57,10 @@ ahora nada en su ficha lo advertía.
         <tr>
           <td>
             {{ p.usuario.get_full_name|default:p.usuario.username }}
-            <div class="small text-muted">{{ p.usuario.username }}</div>
+            {% if p.usuario.bloqueada_desde %}
+            <span class="badge bg-danger" title="Bloqueada por intentos fallidos">bloqueada</span>
+            {% endif %}
+            <div class="small text-muted">{{ p.usuario.email|default:p.usuario.username }}</div>
           </td>
           <td class="small">{{ p.seccion.nombre|default:"— sin sección —" }}</td>
           <td class="small">
@@ -85,6 +88,12 @@ ahora nada en su ficha lo advertía.
             {% endif %}
           </td>
           <td class="text-end">
+            {% if p.usuario.bloqueada_desde %}
+            <form method="post" action="{% url 'usuarios:desbloquear' p.usuario.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger">Desbloquear</button>
+            </form>
+            {% endif %}
             <a href="{% url 'usuarios:editar_perfil' p.pk %}"
                class="btn btn-sm btn-outline-primary">Editar</a>
           </td>

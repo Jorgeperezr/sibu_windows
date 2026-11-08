@@ -4,7 +4,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
-from django.views.generic import TemplateView
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
@@ -19,7 +18,7 @@ urlpatterns = [
         name="firmaec-callback",
     ),
     path("admin/", admin.site.urls),
-    path("", TemplateView.as_view(template_name="inicio.html"), name="inicio"),
+    path("", usuarios_views.inicio, name="inicio"),
     # El cambio de contraseña, ANTES del include de Django: el suyo existe pero
     # se dibuja con la plantilla del panel de administración —otra cabecera,
     # otra tipografía y un enlace a «Administración del sitio»—, y no estaba
@@ -28,7 +27,7 @@ urlpatterns = [
     # El ingreso lleva a crear la primera cuenta en una portable que aún no
     # tiene ninguna; y esa pantalla, que solo existe en la portable y desde el
     # propio computador. Antes del include de `auth` para que resuelvan aquí.
-    path("cuentas/login/", usuarios_views.ingresar, name="login"),
+    path("cuentas/login/", usuarios_views.ingresar),
     path("cuentas/primera/", usuarios_views.primera_cuenta, name="primera_cuenta"),
     path(
         "cuentas/password_change/",
@@ -36,6 +35,10 @@ urlpatterns = [
         name="password_change",
     ),
     path("cuentas/", include("django.contrib.auth.urls")),  # login/logout/password
+    # `/ingresar/`: la dirección corta, la que se dicta. DESPUÉS del include:
+    # de dos rutas con el mismo nombre, `reverse` da la última, y el include
+    # trae su propio «login». La de siempre, arriba, sigue para los marcadores.
+    path("ingresar/", usuarios_views.ingresar, name="login"),
     # API v1
     path("auditoria/", include("apps.auditoria.urls")),
     path("notificaciones/", include("apps.notificaciones.urls")),

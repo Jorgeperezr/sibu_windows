@@ -74,6 +74,11 @@ def actualizar_mi_perfil(usuario, datos: dict):
         if ajena:
             raise ValidationError("Esa cédula ya está registrada en otra cuenta.")
 
+    # El correo es credencial: tomar el de un compañero dejaría a los dos sin
+    # poder entrar con él (`ingreso.buscar_cuenta` no adivina entre dos).
+    if (datos.get("email") or "").strip():
+        datos = {**datos, "email": validar_correo_de_cuenta(datos["email"], excepto=usuario)}
+
     fecha_nacimiento = datos.get("fecha_nacimiento", "")
     if fecha_nacimiento:
         from datetime import date
@@ -317,6 +322,8 @@ def crear_cuenta(
     correo: str = "",
     telefono: str = "",
     con_ficha: bool = True,
+    seccion=None,
+    servicios=None,
 ):
     """
     Da de alta la cuenta de acceso de una persona del equipo.
@@ -340,6 +347,14 @@ def crear_cuenta(
     - **Queda escrito quién creó a quién.** Nunca la clave: ni en claro, ni
       cifrada, ni su longitud.
 
+    La cuenta se identifica con la cédula o, si no se da, con el correo: con
+    los dos se puede ingresar (`apps/usuarios/ingreso.py`). El correo no se
+    repite entre cuentas, porque es credencial.
+
+    `seccion` y `servicios` —las funciones— se asignan en el mismo paso y por
+    el mismo camino auditado que en la edición: antes la cuenta nacía sin
+    ellos y había que acordarse de la pantalla siguiente.
+
     `con_ficha` crea además la ficha profesional, que es lo que convierte la
     cuenta en alguien que atiende. No se crea para un USUARIO_FINAL: esa es la
     cuenta de un estudiante en el portal, y una ficha profesional la pondría en
@@ -356,13 +371,17 @@ def crear_cuenta(
 
     from .models import Rol, Usuario
 
-    cedula = normalizar_cedula(cedula)
+    cedula = normalizar_cedula(cedula or "")
     nombres = (nombres or "").strip()
     apellidos = (apellidos or "").strip()
-    correo = (correo or "").strip()
+    correo = (correo or "").strip().lower()
 
-    if not cedula:
-        raise ValidationError("La cédula es obligatoria: es con lo que la persona ingresa.")
+    if not cedula and not correo:
+        raise ValidationError(
+            "Hace falta el correo (o la cédula): es con lo que la persona ingresa."
+        )
+    if correo:
+        validar_correo_de_cuenta(correo)
 
     # ANTES del dígito verificador, y no después: con «AnonymousUser» —el
     # nombre que trae guardian— la cédula ya falla el módulo 10, así que el
@@ -373,7 +392,7 @@ def crear_cuenta(
     if cedula == centinela:
         raise ValidationError("Ese nombre lo usa el sistema para el usuario anónimo interno.")
 
-    if not validar_cedula_ecuatoriana(cedula):
+    if cedula and not validar_cedula_ecuatoriana(cedula):
         raise ValidationError(
             f"La cédula {cedula} no es válida (no pasa el dígito verificador). "
             "Compruébela antes de crear la cuenta."
@@ -381,7 +400,8 @@ def crear_cuenta(
     if not nombres or not apellidos:
         raise ValidationError("Hacen falta los nombres y los apellidos.")
 
-    if (
+    cuenta = cedula or correo
+    if cedula and (
         Usuario.objects.filter(username=cedula).exists()
         or Usuario.objects.filter(cedula=cedula).exists()
     ):
@@ -394,18 +414,24 @@ def crear_cuenta(
 
     # Las reglas de contraseña de Django, con el nombre y la cédula delante:
     # así rechaza «1100000007» como clave de la cuenta 1100000007.
-    candidato = Usuario(username=cedula, first_name=nombres, last_name=apellidos, email=correo)
+    candidato = Usuario(
+        username=cuenta,
+        cedula=cedula or None,
+        first_name=nombres,
+        last_name=apellidos,
+        email=correo,
+    )
     validate_password(clave_temporal, user=candidato)
 
     with transaction.atomic():
         usuario = Usuario.objects.create_user(
-            username=cedula,
+            username=cuenta,
             password=clave_temporal,
             first_name=nombres,
             last_name=apellidos,
             email=correo,
-            cedula=cedula,
-            telefono=telefono.strip(),
+            cedula=cedula or None,
+            telefono=(telefono or "").strip(),
             rol_principal=rol_principal,
             debe_cambiar_clave=True,
         )
@@ -428,9 +454,125 @@ def crear_cuenta(
         )
 
         if con_ficha and rol_principal != Rol.USUARIO_FINAL:
-            crear_perfil(usuario=usuario, usuario_que_asigna=usuario_que_crea)
+            asignacion = {}
+            if seccion is not None:
+                asignacion["seccion"] = seccion
+            if servicios is not None:
+                asignacion["servicios"] = servicios
+            crear_perfil(usuario=usuario, usuario_que_asigna=usuario_que_crea, **asignacion)
 
     return usuario
+
+
+def validar_correo_de_cuenta(correo: str, excepto=None) -> str:
+    """
+    Un correo válido y de nadie más. Es credencial: si dos cuentas lo
+    compartieran, no se podría entrar por correo a ninguna.
+    """
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    from .models import Usuario
+
+    correo = (correo or "").strip().lower()
+    try:
+        validate_email(correo)
+    except ValidationError:
+        raise ValidationError(f"El correo «{correo}» no es válido.") from None
+    otras = Usuario.objects.filter(email__iexact=correo)
+    if excepto is not None:
+        otras = otras.exclude(pk=excepto.pk)
+    if (
+        otras.exists()
+        or Usuario.objects.filter(username__iexact=correo)
+        .exclude(pk=getattr(excepto, "pk", None))
+        .exists()
+    ):
+        raise ValidationError(f"Ya hay una cuenta con el correo {correo}.")
+    return correo
+
+
+CAMPOS_EDITABLES_POR_ADMINISTRACION = ("first_name", "last_name", "email", "cedula", "telefono")
+
+
+def editar_cuenta(*, cuenta, datos: dict, usuario_que_edita, nueva_clave: str = ""):
+    """
+    Administración General corrige los datos de acceso de una cuenta.
+
+    Nombre, correo, cédula y teléfono; y, si se da, una clave nueva que vuelve
+    a ser TEMPORAL: quien la tecleó la sabe, así que su dueño tendrá que
+    cambiarla al entrar, igual que en el alta. Se valida todo antes de escribir
+    y queda en la bitácora qué campos cambiaron —nunca la clave—.
+    """
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    from apps.academico.validators import normalizar_cedula, validar_cedula_ecuatoriana
+    from apps.auditoria.models import LogAuditoria
+
+    from .models import Usuario
+
+    limpios = {}
+    for campo in CAMPOS_EDITABLES_POR_ADMINISTRACION:
+        if campo in datos:
+            limpios[campo] = (datos.get(campo) or "").strip()
+    if "first_name" in limpios and not limpios["first_name"]:
+        raise ValidationError("Hacen falta los nombres.")
+    if "last_name" in limpios and not limpios["last_name"]:
+        raise ValidationError("Hacen falta los apellidos.")
+    if limpios.get("email"):
+        limpios["email"] = validar_correo_de_cuenta(limpios["email"], excepto=cuenta)
+    elif "email" in limpios and cuenta.username == cuenta.email:
+        raise ValidationError("Esta cuenta entra con su correo: no se puede dejar vacío.")
+    if "cedula" in limpios:
+        cedula = normalizar_cedula(limpios["cedula"])
+        if cedula and not validar_cedula_ecuatoriana(cedula):
+            raise ValidationError(f"La cédula {cedula} no es válida (módulo 10).")
+        if cedula and Usuario.objects.filter(cedula=cedula).exclude(pk=cuenta.pk).exists():
+            raise ValidationError("Esa cédula ya está registrada en otra cuenta.")
+        limpios["cedula"] = cedula or None
+    if nueva_clave:
+        prueba = Usuario(
+            username=cuenta.username,
+            cedula=limpios.get("cedula", cuenta.cedula),
+            first_name=limpios.get("first_name", cuenta.first_name),
+            last_name=limpios.get("last_name", cuenta.last_name),
+            email=limpios.get("email", cuenta.email),
+        )
+        validate_password(nueva_clave, user=prueba)
+
+    cambiados = sorted(c for c, v in limpios.items() if getattr(cuenta, c) != v)
+    with transaction.atomic():
+        # Si la cuenta entraba con su correo, el nombre de cuenta lo sigue.
+        if (
+            "email" in cambiados
+            and cuenta.username == (cuenta.email or "").lower()
+            and limpios["email"]
+        ):
+            cuenta.username = limpios["email"]
+            cambiados.append("username")
+        for campo, valor in limpios.items():
+            setattr(cuenta, campo, valor)
+        if nueva_clave:
+            cuenta.set_password(nueva_clave)
+            cuenta.debe_cambiar_clave = True
+        cuenta.save()
+        if cambiados or nueva_clave:
+            LogAuditoria.objects.create(
+                usuario=usuario_que_edita,
+                rol_activo=getattr(usuario_que_edita, "rol_principal", ""),
+                accion=LogAuditoria.Accion.UPDATE,
+                modulo="usuarios",
+                entidad="Usuario",
+                entidad_id=str(cuenta.pk),
+                detalle={
+                    "cuenta": cuenta.username,
+                    "campos": cambiados,
+                    "clave_restablecida": bool(nueva_clave),
+                },
+            )
+    return cuenta
 
 
 def clave_cambiada(usuario):
@@ -446,7 +588,9 @@ def clave_cambiada(usuario):
     return usuario
 
 
-def crear_primera_cuenta(*, cedula: str, nombres: str, apellidos: str, clave: str):
+def crear_primera_cuenta(
+    *, cedula: str, nombres: str, apellidos: str, clave: str, correo: str = ""
+):
     """
     La primera cuenta de una portable, creada desde el navegador.
 
@@ -478,7 +622,14 @@ def crear_primera_cuenta(*, cedula: str, nombres: str, apellidos: str, clave: st
         raise ValidationError("Esa cédula no es válida (no pasa el dígito verificador).")
     if not nombres or not apellidos:
         raise ValidationError("Hacen falta los nombres y los apellidos.")
-    validate_password(clave, user=Usuario(username=cedula, first_name=nombres, last_name=apellidos))
+    if (correo or "").strip():
+        correo = validar_correo_de_cuenta(correo)
+    validate_password(
+        clave,
+        user=Usuario(
+            username=cedula, cedula=cedula, first_name=nombres, last_name=apellidos, email=correo
+        ),
+    )
 
     with transaction.atomic():
         if cuentas_de_persona().select_for_update().exists():
@@ -486,7 +637,7 @@ def crear_primera_cuenta(*, cedula: str, nombres: str, apellidos: str, clave: st
         return Usuario.objects.create_superuser(
             username=cedula,
             password=clave,
-            email="",
+            email=(correo or "").strip().lower(),
             first_name=nombres,
             last_name=apellidos,
             cedula=cedula,

@@ -7,4 +7,4 @@ class UsuariosConfig(AppConfig):
     verbose_name = "Usuarios y roles"
 
     def ready(self):
-        from . import signals  # noqa: F401  (registra los receptores)
+        from . import ingreso, signals  # noqa: F401  (registra los receptores)

@@ -4,7 +4,7 @@
 <div class="sibu-cabecera">
   <div>
     <h1 class="h4 sibu-titulo mb-0">Nueva cuenta</h1>
-    <small class="text-muted d-block">Dar de alta a alguien del equipo</small>
+    <small class="text-muted d-block">Credenciales, sección y funciones de alguien del equipo</small>
   </div>
   <a href="{% url 'usuarios:gestion_perfiles' %}" class="btn btn-sm btn-outline-secondary">
     Volver
@@ -12,45 +12,61 @@
 </div>
 
 {% comment %}
-Hasta esta pantalla, las cuentas solo existían si alguien abría una terminal y
-ejecutaba un comando. Una unidad con diez profesionales no arranca así, y en
-una portable —una carpeta en el computador de alguien— menos todavía.
+Todo en un paso: antes la cuenta nacía sin sección ni servicios y había que
+acordarse de la pantalla siguiente; una cuenta sin servicios ve el sistema y no
+puede hacer nada en él. Después se edita desde «Perfiles → Editar».
 {% endcomment %}
 <div class="alert alert-secondary small">
-  La cuenta se crea con una <strong>clave temporal</strong> que usted teclea y
-  le dice a su dueño. El sistema le pedirá cambiarla la primera vez que entre,
-  antes de dejarle hacer nada: mientras la clave la sepan dos personas, nadie
-  puede responder de lo que se haga con ella.
+  La persona ingresa con su <strong>correo</strong> y la <strong>clave</strong>
+  que usted le dé (un PIN de 4 dígitos vale). Es temporal: el sistema le pedirá
+  cambiarla la primera vez que entre, porque mientras la sepan dos personas
+  nadie puede responder de lo que se haga con ella.
 </div>
 
 <form method="post" autocomplete="off">
   {% csrf_token %}
   <div class="card mb-3">
+    <div class="card-header">Credenciales</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-7">
+          <label for="correo" class="form-label">Correo</label>
+          <input type="email" class="form-control" id="correo" name="correo"
+                 value="{{ datos.correo|default:'' }}" required autocapitalize="none">
+          <div class="form-text">Es con lo que ingresa. No puede repetirse entre cuentas.</div>
+        </div>
+        <div class="col-md-5">
+          <label for="clave" class="form-label">Clave o PIN</label>
+          <input type="text" class="form-control" id="clave" name="clave" required
+                 minlength="4" autocomplete="new-password">
+          <div class="form-text">
+            Visible a propósito, para leérsela a su dueño. Mínimo 4 caracteres;
+            no valen 1234, 0000 ni otras de las más usadas.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
     <div class="card-header">Quién es</div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-4">
-          <label for="cedula" class="form-label">Cédula</label>
-          <input type="text" class="form-control" id="cedula" name="cedula"
-                 value="{{ datos.cedula|default:'' }}" required maxlength="13"
-                 inputmode="numeric">
-          <div class="form-text">Es con lo que ingresa al sistema.</div>
-        </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
           <label for="nombres" class="form-label">Nombres</label>
           <input type="text" class="form-control" id="nombres" name="nombres"
                  value="{{ datos.nombres|default:'' }}" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
           <label for="apellidos" class="form-label">Apellidos</label>
           <input type="text" class="form-control" id="apellidos" name="apellidos"
                  value="{{ datos.apellidos|default:'' }}" required>
         </div>
         <div class="col-md-6">
-          <label for="correo" class="form-label">Correo institucional</label>
-          <input type="email" class="form-control" id="correo" name="correo"
-                 value="{{ datos.correo|default:'' }}">
-          <div class="form-text">Opcional.</div>
+          <label for="cedula" class="form-label">Cédula</label>
+          <input type="text" class="form-control" id="cedula" name="cedula"
+                 value="{{ datos.cedula|default:'' }}" maxlength="13" inputmode="numeric">
+          <div class="form-text">Opcional. Hace falta para firmar documentos.</div>
         </div>
         <div class="col-md-6">
           <label for="telefono" class="form-label">Teléfono</label>
@@ -63,9 +79,18 @@ una portable —una carpeta en el computador de alguien— menos todavía.
   </div>
 
   <div class="card mb-3">
-    <div class="card-header">Con qué entra</div>
+    <div class="card-header">Dónde labora y qué funciones tiene</div>
     <div class="card-body">
-      <div class="row g-3">
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label for="seccion" class="form-label">Sección</label>
+          <select class="form-select" id="seccion" name="seccion">
+            <option value="">— sin sección —</option>
+            {% for s in secciones %}
+            <option value="{{ s.id }}" {% if datos.seccion == s.id|stringformat:"s" %}selected{% endif %}>{{ s.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="col-md-6">
           <label for="rol" class="form-label">Rol</label>
           <select class="form-select" id="rol" name="rol">
@@ -76,20 +101,31 @@ una portable —una carpeta en el computador de alguien— menos todavía.
             </option>
             {% endfor %}
           </select>
-          <div class="form-text">
-            El rol dice qué módulos ve. Los servicios —y con ellos el contenido
-            clínico— se asignan en la pantalla siguiente.
+          <div class="form-text">Qué módulos ve.</div>
+        </div>
+      </div>
+      <label class="form-label d-block">Servicios en los que atiende</label>
+      <div class="row g-2">
+        {% for s in servicios %}
+        <div class="col-md-4">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="servicios"
+                   value="{{ s.id }}" id="serv-{{ s.id }}"
+                   {% if s.id in marcados %}checked{% endif %}>
+            <label class="form-check-label" for="serv-{{ s.id }}">
+              {{ s.nombre }}
+              {% if s.codigo in confidenciales %}
+              <span class="badge bg-warning-subtle text-warning-emphasis border"
+                    title="Su contenido clínico no sale del servicio">sellado</span>
+              {% endif %}
+            </label>
           </div>
         </div>
-        <div class="col-md-6">
-          <label for="clave" class="form-label">Clave temporal</label>
-          <input type="text" class="form-control" id="clave" name="clave" required
-                 autocomplete="new-password">
-          <div class="form-text">
-            Visible a propósito: usted tiene que poder leérsela a su dueño. No
-            vale la cédula ni una clave corta o común.
-          </div>
-        </div>
+        {% endfor %}
+      </div>
+      <div class="form-text mt-2">
+        Asignar un servicio <strong>concede acceso</strong> a lo que ese
+        servicio atiende; queda en la bitácora.
       </div>
     </div>
   </div>

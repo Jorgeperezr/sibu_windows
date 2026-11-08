@@ -13,8 +13,8 @@
         <p class="text-muted small mb-3">Sistema Integral de Bienestar Universitario</p>
 
         {% if form.errors %}
-        <div class="alert alert-danger py-2 small mb-2">
-          Usuario o contraseña incorrectos. Verifique e intente de nuevo.
+        <div class="alert alert-danger py-2 small mb-2" role="alert">
+          {% for e in form.non_field_errors %}{{ e }} {% empty %}Correo, usuario o clave incorrectos. Verifique e intente de nuevo.{% endfor %}
         </div>
           {% if es_desarrollo %}
           {% comment %}
@@ -44,14 +44,19 @@
         <form method="post">
           {% csrf_token %}
           <div class="mb-3">
-            <label for="id_username" class="form-label">Usuario</label>
+            <label for="id_username" class="form-label">Correo o usuario</label>
             <input type="text" name="username" id="id_username" class="form-control"
-                   autofocus autocomplete="username" required>
+                   value="{{ form.username.value|default:'' }}" inputmode="email"
+                   autocapitalize="none" autofocus autocomplete="username" required>
           </div>
           <div class="mb-3">
-            <label for="id_password" class="form-label">Contraseña</label>
-            <input type="password" name="password" id="id_password" class="form-control"
-                   autocomplete="current-password" required>
+            <label for="id_password" class="form-label">Clave o PIN</label>
+            <div class="input-group">
+              <input type="password" name="password" id="id_password" class="form-control"
+                     autocomplete="current-password" required>
+              <button type="button" class="btn btn-outline-secondary" data-alternar-clave="id_password"
+                      aria-pressed="false" aria-label="Ver u ocultar la clave">Ver</button>
+            </div>
           </div>
           <input type="hidden" name="next" value="{{ next }}">
           <button type="submit" class="btn btn-primary w-100">Ingresar</button>

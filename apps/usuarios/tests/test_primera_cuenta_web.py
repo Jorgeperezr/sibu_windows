@@ -123,5 +123,25 @@ def test_el_arranque_abre_el_navegador_en_la_primera_cuenta():
         encoding="utf-8"
     )
     assert 'destino = f"{url}cuentas/primera/"' in fuente
-    assert "abrir_navegador(destino)" in fuente
+    assert "abrir_navegador(destino, puerto)" in fuente
     assert "crear_cuenta.py" not in fuente, "ya no se manda a escribir comandos"
+
+
+@pytest.mark.django_db
+def test_la_cuenta_principal_puede_entrar_con_su_correo_y_un_pin(portable, client):
+    client.post(
+        "/cuentas/primera/",
+        {
+            "cedula": "1100000007",
+            "nombres": "Ada",
+            "apellidos": "Admin",
+            "correo": "Ada@unl.edu.ec",
+            "clave": "4826",
+            "clave2": "4826",
+        },
+        REMOTE_ADDR="127.0.0.1",
+    )
+    from django.test import Client
+
+    otro = Client(REMOTE_ADDR="192.168.1.40")
+    assert otro.login(username="ada@unl.edu.ec", password="4826")

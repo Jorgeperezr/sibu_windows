@@ -16,6 +16,7 @@ Lo que se fija aquí:
 """
 
 import importlib
+import os
 import socket
 import sys
 from pathlib import Path
@@ -87,15 +88,17 @@ def arranque_simulado(monkeypatch, tmp_path):
     monkeypatch.setattr(arrancar, "preparar_django", lambda p, d=None: llamado.update(dirs=d))
     monkeypatch.setattr(arrancar, "preparar_carpeta", lambda detallado: None)
     monkeypatch.setattr(arrancar, "hay_cuentas", lambda: True)
-    monkeypatch.setattr(arrancar, "puerto_disponible", lambda p: True)
+    monkeypatch.setattr(arrancar, "puerto_disponible", lambda p, anfitrion=None: True)
     monkeypatch.setattr(arrancar, "direcciones_de_red", lambda: ["RECEPCION", "192.168.1.23"])
     monkeypatch.setitem(sys.modules, "config.wsgi", type(sys)("config.wsgi"))
     sys.modules["config.wsgi"].application = object()
     import waitress
 
-    monkeypatch.setattr(
-        waitress, "serve", lambda app, host, port, threads: llamado.update(host=host, port=port)
-    )
+    def servir(app, listen, threads):
+        llamado["listen"] = listen.split()
+        llamado["host"] = llamado["listen"][0].rsplit(":", 1)[0]
+
+    monkeypatch.setattr(waitress, "serve", servir)
     return llamado, tmp_path
 
 
@@ -107,10 +110,35 @@ def test_en_modo_servidor_escucha_en_la_red_y_en_el_puerto_fijo(
 
     assert arrancar.main() == 0
 
-    assert (llamado["host"], llamado["port"]) == ("0.0.0.0", 8000)
+    assert llamado["listen"] == ["0.0.0.0:80", "0.0.0.0:8000"]
     salida = capsys.readouterr().out
-    assert "http://RECEPCION:8000" in salida, "hay que decir qué escribir en los otros equipos"
+    assert "        http://RECEPCION\n" in salida, "la dirección corta, sin puerto que dictar"
+    assert "http://RECEPCION:8000" in salida, "y que las carpetas que ya la guardaron siguen"
     assert "sin cifrar" in salida, "y advertir de la WiFi compartida"
+
+
+def test_con_el_puerto_80_ocupado_queda_el_de_siempre(arranque_simulado, monkeypatch, capsys):
+    """IIS u otro programa puede tener el 80: no es motivo para no arrancar."""
+    llamado, _ = arranque_simulado
+    monkeypatch.setattr(arrancar, "puerto_disponible", lambda p, anfitrion=None: p != 80)
+    monkeypatch.setattr(sys, "argv", ["arrancar.py", "--modo-servidor", "--sin-navegador"])
+
+    assert arrancar.main() == 0
+    assert llamado["listen"] == ["0.0.0.0:8000"]
+    assert "        http://RECEPCION:8000\n" in capsys.readouterr().out
+
+
+def test_los_origenes_de_confianza_van_sin_puerto_en_el_80(monkeypatch):
+    """Con el 80 el navegador manda `Origin: http://RECEPCION`, sin «:80»: si
+    no está así en la lista, todo formulario desde la red da 403."""
+    import django
+
+    monkeypatch.setattr(django, "setup", lambda: None)
+    monkeypatch.delenv("SIBU_ORIGENES", raising=False)
+    arrancar.preparar_django([80, 8000], ["RECEPCION"])
+    origenes = os.environ["SIBU_ORIGENES"].split(",")
+    assert "http://RECEPCION" in origenes and "http://RECEPCION:8000" in origenes
+    assert "http://127.0.0.1" in origenes
 
 
 def test_el_modo_queda_guardado_para_el_icono(arranque_simulado, monkeypatch):
@@ -131,6 +159,7 @@ def test_sin_compartir_sigue_siendo_solo_de_este_computador(arranque_simulado, m
     arrancar.main()
 
     assert llamado["host"] == "127.0.0.1"
+    assert llamado["listen"] == ["127.0.0.1:80"], "en este equipo también la corta"
     assert llamado["dirs"] == []
 
 

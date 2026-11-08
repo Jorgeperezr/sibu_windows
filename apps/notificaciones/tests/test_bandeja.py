@@ -166,7 +166,8 @@ def test_el_contador_baja_al_leerlas(escenario):
 
 @pytest.mark.django_db
 def test_el_contador_de_un_anonimo_es_cero_y_no_revienta(escenario):
-    """La portada es pública: el procesador de contexto corre igual."""
-    respuesta = Client().get("/")
+    """El ingreso es público: el procesador de contexto corre igual. (La
+    portada ya no lo es: sin sesión lleva al ingreso.)"""
+    respuesta = Client().get(reverse("login"))
     assert respuesta.status_code == 200
     assert respuesta.context["notificaciones_sin_leer"] == 0

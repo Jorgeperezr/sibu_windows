@@ -91,6 +91,7 @@ MIDDLEWARE = [
     # se registra, que es lo que permite ver si alguien intentó trabajar con la
     # clave que le tecleó otro.
     "apps.usuarios.middleware.ExigirCambioDeClave",
+    "apps.usuarios.middleware.RenovarSesion",
     "axes.middleware.AxesMiddleware",
 ]
 
@@ -132,7 +133,9 @@ AUTH_USER_MODEL = "usuarios.Usuario"
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    # El de Django, más el correo como identificador y el bloqueo de la cuenta
+    # (apps/usuarios/ingreso.py).
+    "apps.usuarios.ingreso.IngresoPorCorreoOCuenta",
     "guardian.backends.ObjectPermissionBackend",
 ]
 
@@ -141,15 +144,24 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
 
+# Claves breves, incluso un PIN de 4 dígitos (lo pidió la Unidad): lo que las
+# hace aceptables es rechazar las que se prueban primero y el bloqueo de la
+# cuenta tras SIBU_BLOQUEO_CUENTA fallos. Ver apps/usuarios/claves.py.
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 12},
-    },
+    {"NAME": "apps.usuarios.claves.LongitudMinima"},
+    {"NAME": "apps.usuarios.claves.ClaveNoTrivial"},
+    # Su lista trae 160 PIN de 4 dígitos entre las claves más usadas.
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+SIBU_BLOQUEO_CUENTA = env.int("SIBU_BLOQUEO_CUENTA", default=10)
+
+# La sesión dura mientras se trabaja y se cierra tras SIBU_SESION_HORAS sin
+# usarla (10 h: una jornada). La renueva `RenovarSesion` al usarla. Antes eran
+# 15 minutos contados desde el INGRESO, no desde la última página: la sesión
+# caía en mitad de una consulta aunque se estuviera escribiendo.
+SESSION_COOKIE_AGE = env.int("SIBU_SESION_HORAS", default=10) * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "inicio"

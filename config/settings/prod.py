@@ -38,8 +38,8 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_AGE = 60 * 15  # 15 min de inactividad en estaciones clínicas
+# La duración de la sesión es la de base.py (SIBU_SESION_HORAS, renovada con
+# cada página). Una estación compartida puede acortarla con esa variable.
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 

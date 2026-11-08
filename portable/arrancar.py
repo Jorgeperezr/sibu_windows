@@ -53,6 +53,63 @@ def es_modo_servidor() -> bool:
     return ARCHIVO_MODO_SERVIDOR.exists()
 
 
+# Una carpeta en OTRO disco (externo, memoria, otra unidad) donde llevar
+# también cada copia de seguridad. La de `datos/respaldos` vive en el mismo
+# disco que la base: si el disco muere, mueren las dos.
+ARCHIVO_COPIA_EXTERNA = RAIZ / "portable" / "copia_externa.txt"
+
+# Cada cuánto se mira si ya hay copia de hoy. El servidor de la oficina se
+# deja abierto días enteros —su propia ventana pide no cerrarlo—, y la copia
+# solo se hacía al ARRANCAR: una semana sin cerrar era una semana sin copias.
+INTERVALO_RESPALDO_S = 60 * 60
+
+
+def carpeta_copia_externa() -> str | None:
+    """La carpeta de la copia externa, si se configuró (ignora líneas con #)."""
+    if not ARCHIVO_COPIA_EXTERNA.exists():
+        return None
+    for linea in ARCHIVO_COPIA_EXTERNA.read_text(encoding="utf-8-sig").splitlines():
+        linea = linea.strip().strip('"')
+        if linea and not linea.startswith("#"):
+            return linea
+    return None
+
+
+def _argumentos_copia_externa() -> list[str]:
+    externa = carpeta_copia_externa()
+    return ["--copia-en", externa] if externa else []
+
+
+def respaldo_del_dia(verbosidad: int = 0) -> None:
+    """La copia de hoy si aún no la hay. Si falla, se dice y se sigue."""
+    from django.core.management import call_command
+    from django.db import connections
+
+    try:
+        call_command(
+            "respaldar", "--si-no-hay-de-hoy", *_argumentos_copia_externa(), verbosity=verbosidad
+        )
+    except Exception as exc:  # noqa: BLE001 - se informa, no se aborta: no poder respaldar no impide atender
+        print(f"  AVISO con la copia de seguridad de hoy: {exc}")
+    finally:
+        connections.close_all()
+
+
+def vigilar_respaldo_diario(
+    intervalo: float = INTERVALO_RESPALDO_S, parar: threading.Event | None = None
+) -> threading.Event:
+    """Repite `respaldo_del_dia` mientras SIBU esté abierto. Devuelve el
+    evento que lo detiene."""
+    parar = parar or threading.Event()
+
+    def bucle():
+        while not parar.wait(intervalo):
+            respaldo_del_dia()
+
+    threading.Thread(target=bucle, daemon=True, name="respaldo-diario").start()
+    return parar
+
+
 def servidor_central() -> str | None:
     """
     La dirección del servidor de la Unidad, si esta carpeta es un cliente.
@@ -121,6 +178,18 @@ def responde(url: str, segundos: float = 4.0) -> bool:
 PUERTO_SERVIDOR = 8000
 ESCUCHA_SERVIDOR = "0.0.0.0"
 
+# El puerto de la web. Con él la dirección es `http://RECEPCION`, sin «:8000»
+# que dictar ni que olvidar. Se usa si está libre —en Windows no hace falta ser
+# administrador—; si no (IIS u otro programa lo tiene), queda el de siempre.
+# En modo servidor se escucha en LOS DOS: las carpetas de los compañeros ya
+# guardaron `http://RECEPCION:8000` y tienen que seguir entrando.
+PUERTO_CORTO = 80
+
+
+def direccion(anfitrion: str, puerto: int) -> str:
+    """`http://anfitrion` si es el puerto 80; si no, con el puerto."""
+    return f"http://{anfitrion}" if puerto == 80 else f"http://{anfitrion}:{puerto}"
+
 
 def direcciones_de_red() -> list[str]:
     """
@@ -166,17 +235,17 @@ def puerto_libre(preferido: int | None = None) -> int:
         return s.getsockname()[1]
 
 
-def puerto_disponible(puerto: int) -> bool:
-    """¿Se puede escuchar en ese puerto en todas las interfaces?"""
+def puerto_disponible(puerto: int, anfitrion: str = ESCUCHA_SERVIDOR) -> bool:
+    """¿Se puede escuchar en ese puerto (por omisión, en todas las interfaces)?"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
-            s.bind((ESCUCHA_SERVIDOR, puerto))
+            s.bind((anfitrion, puerto))
         except OSError:
             return False
     return True
 
 
-def anunciar_servidor(direcciones: list[str], puerto: int) -> None:
+def anunciar_servidor(direcciones: list[str], puertos: list[int]) -> None:
     """
     Lo que los compañeros tienen que escribir, y la advertencia de la WiFi.
 
@@ -190,11 +259,14 @@ def anunciar_servidor(direcciones: list[str], puerto: int) -> None:
     print("   En el computador de cada compañero, abra «Conectar al SIBU")
     print("   de la oficina» y escriba esta dirección:")
     print()
-    for direccion in direcciones:
-        print(f"        http://{direccion}:{puerto}")
+    for nombre in direcciones:
+        print(f"        {direccion(nombre, puertos[0])}")
     print()
     print("   (la primera es el nombre de este equipo; si no funciona, use")
     print("    la siguiente, que es su número en la red)")
+    if len(puertos) > 1:
+        otros = ", ".join(direccion(direcciones[0], p) for p in puertos[1:])
+        print(f"   Las carpetas que ya guardaron {otros} siguen entrando.")
     print()
     print("   Mientras los demás trabajen, NO cierre esta ventana ni apague")
     print("   o suspenda este computador: los datos están aquí.")
@@ -206,7 +278,7 @@ def anunciar_servidor(direcciones: list[str], puerto: int) -> None:
     print()
 
 
-def preparar_django(puerto: int, direcciones: list[str] | None = None) -> None:
+def preparar_django(puerto: int | list[int], direcciones: list[str] | None = None) -> None:
     """
     Deja Django listo para arrancar.
 
@@ -222,9 +294,14 @@ def preparar_django(puerto: int, direcciones: list[str] | None = None) -> None:
     que poder enviar formularios.
     """
     direcciones = direcciones or []
+    puertos = puerto if isinstance(puerto, list) else [puerto]
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.portable")
-    origenes = [f"http://{ANFITRION}:{puerto}", f"http://localhost:{puerto}"]
-    origenes += [f"http://{d}:{puerto}" for d in direcciones]
+    # Con el puerto 80 el navegador manda el origen SIN puerto: `http://RECEPCION`.
+    origenes = [
+        direccion(anfitrion, p)
+        for p in puertos
+        for anfitrion in [ANFITRION, "localhost", *direcciones]
+    ]
     os.environ["SIBU_ORIGENES"] = ",".join(origenes)
     os.environ["SIBU_HOSTS"] = ",".join(direcciones)
 
@@ -245,6 +322,24 @@ def preparar_carpeta(detallado: bool) -> None:
     from django.core.management import call_command
 
     verbosidad = 1 if detallado else 0
+    # Antes de tocar el esquema, una copia. Solo hay migraciones pendientes la
+    # primera vez que arranca una versión nueva, que es justo cuando una base
+    # se puede quedar a medias. La copia diaria iba DESPUÉS de migrar: si la
+    # actualización fallaba, no había copia de cómo estaba la base antes.
+    # Si esta copia no se puede hacer, NO se migra: mejor un SIBU que no
+    # arranca con la base intacta que uno que arranca sobre una rota.
+    try:
+        call_command(
+            "respaldar", "--antes-de-actualizar", *_argumentos_copia_externa(), verbosity=verbosidad
+        )
+    except Exception as exc:
+        raise SystemExit(
+            "\n  No se pudo hacer la copia de seguridad previa a la actualización:\n"
+            f"  {exc}\n\n"
+            "  SIBU no se actualizó y la base está como estaba. Revise el espacio\n"
+            "  en disco (o el disco de la copia externa) y vuelva a abrirlo, o\n"
+            "  siga usando la carpeta de la versión anterior.\n"
+        ) from exc
     call_command("migrate", interactive=False, verbosity=verbosidad)
     call_command("preparar", "--si-cambio", "--sin-demo", verbosity=verbosidad)
     call_command("collectstatic", interactive=False, verbosity=0)
@@ -263,10 +358,7 @@ def preparar_carpeta(detallado: bool) -> None:
     # Una copia al día, la primera vez que se abre SIBU ese día. Sin esto no
     # había ninguna: perder el disco era perder todas las historias clínicas.
     # Si falla, se dice y se sigue: no poder respaldar no puede impedir atender.
-    try:
-        call_command("respaldar", "--si-no-hay-de-hoy", verbosity=verbosidad)
-    except Exception as exc:  # noqa: BLE001 - se informa, no se aborta el arranque
-        print(f"  AVISO: no se pudo hacer la copia de seguridad de hoy: {exc}")
+    respaldo_del_dia(verbosidad)
 
 
 def optimizar_base() -> None:
@@ -301,7 +393,7 @@ def hay_cuentas() -> bool:
     return cuentas_de_persona().exists()
 
 
-def abrir_navegador(url: str) -> None:
+def abrir_navegador(url: str, puerto: int) -> None:
     """
     Abre el navegador cuando el servidor ya responde.
 
@@ -312,7 +404,7 @@ def abrir_navegador(url: str) -> None:
     def esperar_y_abrir():
         for _ in range(100):  # 10 s de margen
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                if s.connect_ex((ANFITRION, int(url.rsplit(":", 1)[1].split("/")[0]))) == 0:
+                if s.connect_ex((ANFITRION, puerto)) == 0:
                     break
             time.sleep(0.1)
         webbrowser.open(url)
@@ -372,17 +464,27 @@ def main() -> int:
             print(f"  El puerto {puerto} ya está en uso en este computador.")
             print("  ¿Hay otro SIBU abierto? Ciérrelo y vuelva a abrir este.")
             return 1
+        puertos = [puerto]
+        if not opciones.puerto and puerto_disponible(PUERTO_CORTO):
+            puertos = [PUERTO_CORTO, puerto]
         direcciones = direcciones_de_red()
         escucha = ESCUCHA_SERVIDOR
     else:
-        puerto = puerto_libre(opciones.puerto)
-    preparar_django(puerto, direcciones)
+        if opciones.puerto:
+            puerto = opciones.puerto
+        elif puerto_disponible(PUERTO_CORTO, ANFITRION):
+            puerto = PUERTO_CORTO
+        else:
+            puerto = puerto_libre()
+        puertos = [puerto]
+    puerto = puertos[0]
+    preparar_django(puertos, direcciones)
 
     print("SIBU — Unidad de Bienestar Universitario · UNL")
     print("Preparando la carpeta…")
     preparar_carpeta(opciones.detallado)
 
-    url = f"http://{ANFITRION}:{puerto}/"
+    url = direccion(ANFITRION, puerto) + "/"
     destino = url
     if not hay_cuentas():
         # Sin ninguna cuenta, el sistema levanta y luego rechaza a cualquiera
@@ -397,18 +499,20 @@ def main() -> int:
 
     print(f"SIBU está en {url}")
     if opciones.modo_servidor:
-        anunciar_servidor(direcciones, puerto)
+        anunciar_servidor(direcciones, puertos)
     print("Para cerrarlo, cierre esta ventana o pulse Ctrl+C.")
 
     if not opciones.sin_navegador:
-        abrir_navegador(destino)
+        abrir_navegador(destino, puerto)
 
     from waitress import serve
 
     from config.wsgi import application
 
+    vigilar_respaldo_diario()
+
     try:
-        serve(application, host=escucha, port=puerto, threads=8)
+        serve(application, listen=" ".join(f"{escucha}:{p}" for p in puertos), threads=8)
     except KeyboardInterrupt:
         print("\nSIBU cerrado.")
     return 0

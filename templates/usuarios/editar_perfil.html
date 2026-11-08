@@ -25,8 +25,61 @@ del sistema que no se puede deshacer mirando después la bitácora.
   atiende. Todo cambio queda en la bitácora con lo que entró y lo que salió.
 </div>
 
-<form method="post">
+{% if perfil.usuario.bloqueada_desde %}
+<div class="alert alert-danger d-flex justify-content-between align-items-center gap-2">
+  <span>
+    Cuenta <strong>bloqueada</strong> desde {{ perfil.usuario.bloqueada_desde|date:"d/m/Y H:i" }}
+    por intentos fallidos. Antes de abrirla, confirme con su dueño que fue él.
+  </span>
+  <form method="post" action="{% url 'usuarios:desbloquear' perfil.usuario.pk %}">
+    {% csrf_token %}
+    <button class="btn btn-sm btn-danger">Desbloquear</button>
+  </form>
+</div>
+{% endif %}
+
+<form method="post" autocomplete="off">
   {% csrf_token %}
+  <div class="card mb-3">
+    <div class="card-header">Datos de acceso</div>
+    <div class="card-body row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="f-nombres">Nombres</label>
+        <input class="form-control" id="f-nombres" name="first_name" required
+               value="{{ perfil.usuario.first_name }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="f-apellidos">Apellidos</label>
+        <input class="form-control" id="f-apellidos" name="last_name" required
+               value="{{ perfil.usuario.last_name }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="f-correo">Correo</label>
+        <input class="form-control" type="email" id="f-correo" name="email"
+               value="{{ perfil.usuario.email }}" autocapitalize="none">
+        <div class="form-text">Con él ingresa. No puede repetirse entre cuentas.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="f-cedula">Cédula</label>
+        <input class="form-control" id="f-cedula" name="cedula" maxlength="13"
+               inputmode="numeric" value="{{ perfil.usuario.cedula|default:'' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="f-telefono">Teléfono</label>
+        <input class="form-control" id="f-telefono" name="telefono" maxlength="20"
+               value="{{ perfil.usuario.telefono }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="f-clave">Clave o PIN nuevo</label>
+        <input class="form-control" type="text" id="f-clave" name="nueva_clave"
+               minlength="4" autocomplete="new-password" placeholder="Dejar vacío para no cambiarla">
+        <div class="form-text">
+          Para quien la olvidó. Será temporal: tendrá que cambiarla al entrar.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="card mb-3">
     <div class="card-header">Servicios en los que atiende</div>
     <div class="card-body">

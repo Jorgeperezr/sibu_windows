@@ -29,6 +29,7 @@ from .rbac import SERVICIOS_CONFIDENCIALES
 from .selectors import cuentas_sin_perfil, perfiles_para_gestion
 from .services import (
     CAMPOS_CUENTA,
+    CAMPOS_EDITABLES_POR_ADMINISTRACION,
     CAMPOS_PERFIL,
     actualizar_mi_perfil,
     agregar_actividad,
@@ -36,6 +37,7 @@ from .services import (
     clave_cambiada,
     crear_cuenta,
     crear_perfil,
+    editar_cuenta,
     eliminar_actividad,
 )
 
@@ -156,7 +158,9 @@ def gestion_perfiles(request):
 
 @login_required
 def editar_perfil(request, pk):
-    """Sección, servicios, rol y firma digital de un profesional."""
+    """Datos de acceso, sección, servicios, rol y firma digital de un profesional."""
+    from django.db import transaction
+
     _solo_administracion(request)
     perfil = get_object_or_404(
         PerfilProfesional.objects.select_related("usuario", "seccion"), pk=pk
@@ -164,17 +168,33 @@ def editar_perfil(request, pk):
 
     if request.method == "POST":
         try:
-            asignar_perfil(
-                perfil=perfil,
-                seccion=Seccion.objects.filter(pk=request.POST.get("seccion") or 0).first(),
-                servicios=Servicio.objects.filter(pk__in=request.POST.getlist("servicios")),
-                rol_principal=request.POST.get("rol") or None,
-                puede_firmar_digital=request.POST.get("firma") == "1",
-                usuario_que_asigna=request.user,
-            )
-            messages.success(request, f"Perfil de {perfil.usuario.get_full_name()} actualizado.")
+            # Las dos mitades juntas o ninguna: un servicio rechazado no puede
+            # dejar guardado el correo nuevo bajo un aviso de error.
+            with transaction.atomic():
+                if "first_name" in request.POST:
+                    editar_cuenta(
+                        cuenta=perfil.usuario,
+                        datos={
+                            c: request.POST.get(c, "") for c in CAMPOS_EDITABLES_POR_ADMINISTRACION
+                        },
+                        usuario_que_edita=request.user,
+                        nueva_clave=request.POST.get("nueva_clave", ""),
+                    )
+                asignar_perfil(
+                    perfil=perfil,
+                    seccion=Seccion.objects.filter(pk=request.POST.get("seccion") or 0).first(),
+                    servicios=Servicio.objects.filter(pk__in=request.POST.getlist("servicios")),
+                    rol_principal=request.POST.get("rol") or None,
+                    puede_firmar_digital=request.POST.get("firma") == "1",
+                    usuario_que_asigna=request.user,
+                )
+            aviso = f"Perfil de {perfil.usuario.get_full_name()} actualizado."
+            if request.POST.get("nueva_clave"):
+                aviso += " La clave nueva es temporal: tendrá que cambiarla al entrar."
+            messages.success(request, aviso)
             return redirect("usuarios:gestion_perfiles")
         except ValidationError as exc:
+            perfil.usuario.refresh_from_db()
             messages.error(request, "; ".join(exc.messages))
 
     return render(
@@ -221,6 +241,32 @@ def alta_perfil(request, pk):
 
 
 @login_required
+@require_POST
+def desbloquear_cuenta(request, pk):
+    """Abre una cuenta cerrada por intentos fallidos. Solo Administración General."""
+    from .ingreso import desbloquear
+
+    _solo_administracion(request)
+    cuenta = get_object_or_404(Usuario, pk=pk)
+    desbloquear(cuenta, por=request.user)
+    messages.success(request, f"{cuenta.get_full_name() or cuenta.username} ya puede ingresar.")
+    return redirect("usuarios:gestion_perfiles")
+
+
+def _contexto_alta(datos):
+    return {
+        "roles": Rol.choices,
+        "datos": datos,
+        "secciones": Seccion.objects.order_by("nombre"),
+        "servicios": Servicio.objects.filter(activo=True).order_by("nombre"),
+        "marcados": {int(x) for x in datos.getlist("servicios") if x.isdigit()}
+        if hasattr(datos, "getlist")
+        else set(),
+        "confidenciales": SERVICIOS_CONFIDENCIALES,
+    }
+
+
+@login_required
 def nueva_cuenta(request):
     """
     Dar de alta a alguien del equipo, desde el sistema.
@@ -237,6 +283,8 @@ def nueva_cuenta(request):
 
     if request.method == "POST":
         try:
+            if not request.POST.get("correo", "").strip():
+                raise ValidationError("El correo es obligatorio: es con lo que la persona ingresa.")
             usuario = crear_cuenta(
                 cedula=request.POST.get("cedula", ""),
                 nombres=request.POST.get("nombres", ""),
@@ -246,32 +294,23 @@ def nueva_cuenta(request):
                 rol_principal=request.POST.get("rol", Rol.PROFESIONAL),
                 clave_temporal=request.POST.get("clave", ""),
                 usuario_que_crea=request.user,
+                seccion=Seccion.objects.filter(pk=request.POST.get("seccion") or 0).first(),
+                servicios=Servicio.objects.filter(pk__in=request.POST.getlist("servicios")),
             )
             messages.success(
                 request,
-                f"Cuenta creada para {usuario.get_full_name()}. Ingresa con su cédula "
-                f"{usuario.username} y la clave temporal, y el sistema le pedirá "
+                f"Cuenta creada para {usuario.get_full_name()}. Ingresa con su correo "
+                f"{usuario.email} y la clave que usted le dé; el sistema le pedirá "
                 "cambiarla antes de dejarle hacer nada.",
             )
-            perfil = PerfilProfesional.objects.filter(usuario=usuario).first()
-            if perfil:
-                return redirect("usuarios:editar_perfil", pk=perfil.pk)
             return redirect("usuarios:gestion_perfiles")
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
             # Se devuelve lo tecleado —menos la clave— para no obligar a
-            # escribirlo todo otra vez por una cédula mal copiada.
-            return render(
-                request,
-                "usuarios/nueva_cuenta.html",
-                {"roles": Rol.choices, "datos": request.POST},
-            )
+            # escribirlo todo otra vez por un correo mal copiado.
+            return render(request, "usuarios/nueva_cuenta.html", _contexto_alta(request.POST))
 
-    return render(
-        request,
-        "usuarios/nueva_cuenta.html",
-        {"roles": Rol.choices, "datos": {}},
-    )
+    return render(request, "usuarios/nueva_cuenta.html", _contexto_alta({}))
 
 
 @login_required
@@ -347,11 +386,12 @@ def primera_cuenta(request):
                     nombres=request.POST.get("nombres", ""),
                     apellidos=request.POST.get("apellidos", ""),
                     clave=request.POST.get("clave", ""),
+                    correo=request.POST.get("correo", ""),
                 )
             except ValidationError as exc:
                 messages.error(request, "; ".join(exc.messages))
             else:
-                login(request, cuenta, backend="django.contrib.auth.backends.ModelBackend")
+                login(request, cuenta, backend="apps.usuarios.ingreso.IngresoPorCorreoOCuenta")
                 messages.success(
                     request,
                     "Cuenta creada. Desde «Perfiles → Nueva cuenta» dé de alta "
@@ -371,8 +411,20 @@ def ingresar(request, *args, **kwargs):
     """
     from django.contrib.auth.views import LoginView
 
+    from .ingreso import FormularioIngreso
     from .selectors import cuentas_de_persona
 
     if _es_portable_local(request) and not cuentas_de_persona().exists():
         return redirect("primera_cuenta")
-    return LoginView.as_view()(request, *args, **kwargs)
+    if request.user.is_authenticated and not request.GET.get("next"):
+        return redirect("inicio")
+    return LoginView.as_view(authentication_form=FormularioIngreso)(request, *args, **kwargs)
+
+
+def inicio(request):
+    """La portada. Sin sesión lleva directo al ingreso: `http://EQUIPO` basta."""
+    from django.shortcuts import render as pintar
+
+    if not request.user.is_authenticated:
+        return redirect("login")
+    return pintar(request, "inicio.html")
