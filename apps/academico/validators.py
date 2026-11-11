@@ -85,10 +85,74 @@ def a_fecha(valor):
         return None
     if isinstance(valor, date | datetime):
         return valor.date() if isinstance(valor, datetime) else valor
-    texto = str(valor).strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%m/%d/%Y"):
+    # Espacios repetidos fuera: «14  04 2001» es la misma fecha.
+    texto = " ".join(str(valor).split())
+    # «14 04 2001» y «14.04.2001» son como la base de estudiantes de la UNL
+    # escribe la fecha de nacimiento: sin ellos, cada fecha quedaba vacía sin
+    # aviso y la edad no se podía calcular.
+    for fmt in (
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+        "%d %m %Y",
+        "%d.%m.%Y",
+        "%Y/%m/%d",
+        "%m/%d/%Y",
+    ):
         try:
             return datetime.strptime(texto, fmt).date()
         except ValueError:
             continue
     return None
+
+
+def normalizar_encabezado(nombre) -> str:
+    """
+    El encabezado de una columna como lo espera el mapeo: minúsculas, sin
+    tildes y con guion bajo en lugar de espacios.
+
+    La base de estudiantes de la UNL llega con los encabezados en MAYÚSCULAS
+    (`CEDULA`, `NOMBRES`): sin esto, cada fila salía rechazada por «cédula,
+    nombres y apellidos vacíos» aunque estuvieran escritos. El guion se
+    conserva: `trabajo_telefono-2` es un nombre canónico.
+    """
+    import unicodedata
+
+    texto = unicodedata.normalize("NFD", str(nombre or "").strip().lower())
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    return "_".join(texto.split())
+
+
+def telefono_o_vacio(valor) -> str:
+    """
+    El teléfono, o cadena vacía si no hay ninguno de verdad.
+
+    «000000000» es lo que se escribe en la ficha cuando no hay teléfono: como
+    dato parece un número y no se puede llamar a él. Un vacío nunca borra el que
+    ya estaba (ver `ProcesadorCarga.DE_CONTACTO`).
+    """
+    texto = str(valor or "").strip()
+    digitos = "".join(c for c in texto if c.isdigit())
+    if not digitos or set(digitos) == {"0"}:
+        return ""
+    return texto
+
+
+GRUPOS_SANGUINEOS = ("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
+
+
+def normalizar_grupo_sanguineo(valor) -> str | None:
+    """
+    «A Rh+», «ARH+», «A positivo», «0+» → «A+», «O+»; None si no se reconoce.
+
+    El campo del expediente admite 5 caracteres y la base escribe el tipo de
+    sangre de muchas maneras: «A Rh+» cabía justo y entraba tal cual, «O RH +»
+    se cortaba y quedaba «O RH », y el mismo grupo salía en varias filas al
+    contarlo. Lo que no se reconoce no se adivina: la fila cruda lo conserva.
+    """
+    import re
+
+    texto = str(valor or "").upper().replace("POSITIVO", "+").replace("NEGATIVO", "-")
+    texto = re.sub(r"FACTOR|RH|[\s.()]", "", texto)
+    texto = re.sub(r"^0", "O", texto)
+    return texto if texto in GRUPOS_SANGUINEOS else None

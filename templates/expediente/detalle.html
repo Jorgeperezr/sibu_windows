@@ -27,6 +27,20 @@
 </div>
 {% endif %}
 
+{% if salud_declarada %}
+<div class="card mb-3">
+  <div class="card-header">Salud declarada en la matrícula</div>
+  <div class="card-body py-2">
+    <p class="small text-muted mb-2">Lo que la persona escribió en su ficha: no está comprobado.</p>
+    <dl class="row small mb-0">
+      {% for etiqueta, valor in salud_declarada %}
+      <dt class="col-sm-4">{{ etiqueta }}</dt><dd class="col-sm-8">{{ valor }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+{% endif %}
+
 {% if tipos_alerta %}
 <div class="card mb-3">
   <div class="card-header">

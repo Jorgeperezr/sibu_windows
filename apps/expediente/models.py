@@ -131,6 +131,12 @@ class Expediente(ModeloBase):
     grupo_sanguineo = models.CharField(max_length=5, blank=True)
     discapacidad_tipo = models.CharField(max_length=60, blank=True)
     discapacidad_porcentaje = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Lo que la persona declaró de su salud en la ficha de matrícula: problema
+    # de salud y diagnóstico, COVID, vacunas, enfermedad catastrófica o rara…
+    # Antes solo quedaba en la fila cruda de cada período, sin pantalla que lo
+    # enseñara. Es lo DECLARADO, no lo comprobado: se fusiona en cada carga y un
+    # vacío nunca borra lo anterior. Lo ven los servicios clínicos de Salud.
+    salud_declarada = models.JSONField(default=dict, blank=True)
     fecha_apertura = models.DateField(auto_now_add=True)
 
     class Meta:

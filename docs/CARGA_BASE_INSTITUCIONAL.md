@@ -38,13 +38,20 @@ Tres detalles que en la práctica son los que rompen una carga:
   antes de escribir. (El sistema repone el cero inicial perdido y limpia el
   `.0` que Excel añade, pero la notación científica ya no es recuperable.)
 - **Fechas en `AAAA-MM-DD`.** También se aceptan `DD/MM/AAAA`, `DD-MM-AAAA`,
-  `AAAA/MM/DD` y `MM/DD/AAAA`; cualquier otra cosa queda vacía sin avisar.
+  `DD MM AAAA` (con espacios, como la base de estudiantes de la UNL),
+  `DD.MM.AAAA`, `AAAA/MM/DD` y `MM/DD/AAAA`; cualquier otra cosa queda vacía
+  sin avisar.
 
 ## Cuál es el encabezado de la tabla
 
-La **primera fila son los encabezados**, escritos exactamente como los espera el
-sistema: en minúsculas, sin tildes y con guion bajo. Cada fila siguiente es una
-persona.
+La **primera fila son los encabezados**, con los nombres que espera el sistema.
+Da igual que vengan en MAYÚSCULAS (`CEDULA`, `TIPO_SANGRE`), con tildes o con
+espacios: se leen en minúsculas, sin tildes y con guion bajo. Cada fila
+siguiente es una persona.
+
+Al cargar también se limpia lo que la base escribe de varias maneras: un
+teléfono `000000000` cuenta como sin teléfono, y el tipo de sangre `A Rh+`,
+`ARH+` o `A positivo` se guarda como `A+`.
 
 No hace falta escribirlos a mano. Desde
 **Base institucional → Diccionario de columnas → Descargar plantilla CSV** se
@@ -67,12 +74,12 @@ original queda tal como lo entregó la institución.
 
 ## Cuántas variables debe proporcionar
 
-**157 columnas en total, de las cuales solo 3 son obligatorias:** `cedula`,
+**161 columnas en total, de las cuales solo 3 son obligatorias:** `cedula`,
 `nombres` y `apellidos`. Una fila sin alguna de ellas se rechaza y queda anotada
 en la bitácora de la carga, con su número de fila y el motivo; el resto del
 archivo se procesa igual.
 
-Las otras 154 son opcionales en el sentido estricto: una columna ausente
+Las otras 158 son opcionales en el sentido estricto: una columna ausente
 simplemente queda vacía y el profesional la completará al atender. Pero cuantas
 más se entreguen, menos tiene que digitar el profesional y más completos salen
 los informes.
@@ -81,23 +88,23 @@ los informes.
 |---|---:|---|
 | Identificación | 9 | Persona |
 | Datos académicos | 10 | Dato académico |
-| Identidad (sensible) | 2 | Persona (cifrado) |
+| Identidad (sensible) | 2 | No se guarda |
 | Salud básica | 3 | Expediente |
 | Procedencia | 6 | Persona (JSON) |
 | Residencia actual | 10 | Persona (JSON) |
 | Contacto de referencia | 5 | Persona (JSON) |
 | Situación laboral | 11 | Ficha socioeconómica |
-| Grupo familiar | 12 | Ficha socioeconómica |
+| Grupo familiar | 13 | Fila del período (padrón) |
 | Convivencia | 7 | Ficha socioeconómica |
 | Vivienda del estudiante | 10 | Ficha socioeconómica |
 | Vivienda familiar | 10 | Ficha socioeconómica |
 | Salud familiar | 6 | Ficha socioeconómica |
-| Salud del estudiante | 11 | Ficha socioeconómica |
-| Bienes y negocio | 7 | Ficha socioeconómica |
+| Salud del estudiante | 17 | Expediente («salud declarada», solo para Medicina, Enfermería y Odontología) y alertas |
+| Bienes y negocio | 7 | Fila del período (padrón) |
 | Ingresos | 12 | Ficha socioeconómica |
 | Egresos | 17 | Ficha socioeconómica |
-| Situaciones sensibles | 3 | Ficha socioeconómica (cifrado) |
-| Datos bancarios de beca | 3 | Beca (cifrado) |
+| Situaciones sensibles | 3 | Solo genera la alerta; no se guarda |
+| Datos bancarios de beca | 3 | No se guarda |
 | Control del formulario | 3 | Solo fila cruda |
 
 El detalle columna por columna está en la pantalla del diccionario, que es la
@@ -165,3 +172,18 @@ Tres grupos del archivo —`grupo_familiar`, `salud_estudiante` y
 distribuyen a campos consultables de la ficha socioeconómica. El dato no se
 pierde; simplemente todavía no se puede filtrar ni sumar por él. Queda anotado
 como trabajo pendiente para no darlo por hecho.
+
+## Las cuatro columnas que añadió la base de estudiantes
+
+| Columna | Qué hace |
+|---|---|
+| `tiene_enfermedad_catastrofica` | Con «Sí» crea la alerta *Enfermedad catastrófica* (la que cuenta el informe estadístico) |
+| `enfermedades_catastroficas` | El nombre de la enfermedad: va en la descripción de esa alerta. Escribirla basta aunque la casilla anterior venga vacía |
+| `tiene_enfermedad_rara_huerfana` | Con «Sí» crea una alerta de riesgo para Medicina |
+| `necesita_ayuda_bienestar` | Con «Sí» crea una alerta social para Trabajo Social: quien la marca está pidiendo ayuda |
+
+Como las demás alertas de la matrícula, se apagan solo con una negación
+expresa («No», «Ninguna», «No aplica», «0») y solo si las encendió una carga.
+Cada columna apaga **sus** alertas: «discapacidad: No» ya no apaga la de
+consumo, que comparte el tipo «riesgo».
+

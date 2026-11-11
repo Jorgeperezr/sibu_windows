@@ -1,6 +1,6 @@
 # Cómo cargar la base de datos, paso a paso
 
-Guía de uso. El detalle de las 157 columnas está en
+Guía de uso. El detalle de las 161 columnas está en
 `docs/CARGA_BASE_INSTITUCIONAL.md`; esto es el procedimiento.
 
 ## Antes de empezar
@@ -55,8 +55,9 @@ Tres cosas que rompen una carga, por orden de frecuencia:
    trata como número: convierte `0912345678` en `912345678` y `1104567894` en
    `1,10457E+09`. El sistema repone el cero perdido; la notación científica ya
    no se puede recuperar.
-3. **Fechas en `AAAA-MM-DD`.** También se aceptan `DD/MM/AAAA` y `DD-MM-AAAA`;
-   cualquier otra cosa queda vacía sin avisar.
+3. **Fechas en `AAAA-MM-DD`.** También se aceptan `DD/MM/AAAA`, `DD-MM-AAAA`
+   y `DD MM AAAA`; cualquier otra cosa queda vacía sin avisar. Los encabezados
+   pueden venir en MAYÚSCULAS.
 
 **Los montos se escriben como se escriben aquí**: `450,50` con coma decimal, o
 `450.50` con punto; los dos entran por lo mismo. Con separador de miles escriba

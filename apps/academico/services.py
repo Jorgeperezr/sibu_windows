@@ -46,7 +46,7 @@ class LectorFicha:
                 self._df = pd.read_csv(self.ruta, dtype=str, keep_default_na=False)
             else:
                 self._df = pd.read_excel(self.ruta, dtype=str, keep_default_na=False)
-            self._df.columns = [str(c).strip() for c in self._df.columns]
+            self._df.columns = [validators.normalizar_encabezado(c) for c in self._df.columns]
         return self._df
 
     def columnas(self) -> list[str]:
@@ -111,9 +111,13 @@ class ProcesadorCarga:
         self.dominio = settings.SIBU["DOMINIO_CORREO_INSTITUCIONAL"]
 
     # -- utilidades de acceso a la fila usando el mapeo de alias --
+    def _alias(self, col_canonica: str) -> str:
+        # El alias se normaliza igual que los encabezados del archivo: el mapeo
+        # guardado puede venir escrito como en el archivo original.
+        return validators.normalizar_encabezado(self.mapeo.get(col_canonica, col_canonica))
+
     def _get(self, fila: dict, col_canonica: str):
-        alias = self.mapeo.get(col_canonica, col_canonica)
-        return fila.get(alias)
+        return fila.get(self._alias(col_canonica))
 
     def _fila_conservable(self, fila: dict) -> dict:
         """
@@ -124,7 +128,7 @@ class ProcesadorCarga:
         por el canónico la dejaría pasar con su otro nombre.
         """
         fuera = set(mapping.NO_SE_CONSERVAN)
-        fuera |= {self.mapeo.get(c, c) for c in mapping.NO_SE_CONSERVAN}
+        fuera |= {self._alias(c) for c in mapping.NO_SE_CONSERVAN}
         return {k: v for k, v in fila.items() if v is not None and k not in fuera}
 
     def _subdict(self, fila: dict, columnas: list[str]) -> dict:
@@ -252,8 +256,8 @@ class ProcesadorCarga:
             "tipo_documento": self._get(fila, "tipo_documento") or "cedula",
             "sexo": self._get(fila, "sexo") or "",
             "genero": self._get(fila, "genero") or "",
-            "celular": self._get(fila, "celular") or "",
-            "telefono": self._get(fila, "telefono") or "",
+            "celular": validators.telefono_o_vacio(self._get(fila, "celular")),
+            "telefono": validators.telefono_o_vacio(self._get(fila, "telefono")),
             "correo_institucional": self._get(fila, "email_institucional") or "",
             "fecha_nacimiento": validators.a_fecha(self._get(fila, "fecha_nacimiento")),
         }
@@ -324,7 +328,10 @@ class ProcesadorCarga:
             persona=persona,
             defaults={
                 "numero_expediente": f"EXP-{persona.cedula}",
-                "grupo_sanguineo": self._get(fila, "tipo_sangre") or "",
+                "grupo_sanguineo": validators.normalizar_grupo_sanguineo(
+                    self._get(fila, "tipo_sangre")
+                )
+                or "",
                 "discapacidad_tipo": self._get(fila, "discapacidad_tipo") or "",
             },
         )
@@ -338,6 +345,17 @@ class ProcesadorCarga:
                 continue
             setattr(expediente, campo, valor)
             completados.append(campo)
+        # La salud declarada se FUSIONA: el archivo del período nuevo trae lo
+        # que cambia y el resto vacío, y ese vacío no borra lo que ya estaba.
+        declarada = {
+            c: str(v).strip()
+            for c, v in self._subdict(fila, mapping.FICHA_JSONB["salud_estudiante"]).items()
+            if str(v).strip()
+        }
+        fusionada = {**(expediente.salud_declarada or {}), **declarada}
+        if fusionada != (expediente.salud_declarada or {}):
+            expediente.salud_declarada = fusionada
+            completados.append("salud_declarada")
         if completados:
             expediente.save(update_fields=completados)
         return expediente
@@ -359,7 +377,9 @@ class ProcesadorCarga:
                 return None
             numero = int(digitos)
             return numero if 0 <= numero <= 100 else None
-        limites = {"grupo_sanguineo": 5, "discapacidad_tipo": 60}
+        if campo == "grupo_sanguineo":
+            return validators.normalizar_grupo_sanguineo(valor)
+        limites = {"discapacidad_tipo": 60}
         return str(valor).strip()[: limites.get(campo, 255)]
 
     def _prepoblar_ficha(self, fila, expediente):
@@ -388,7 +408,18 @@ class ProcesadorCarga:
     # Lo que en el archivo significa «no». Se compara en minúsculas y sin
     # espacios: las cuatro bases institucionales escriben la negación a su
     # manera y ninguna vale más que otra.
-    NEGACIONES = {"no", "0", "ninguno", "n/a", "ninguna", "false", "-"}
+    NEGACIONES = {
+        "no",
+        "0",
+        "ninguno",
+        "n/a",
+        "ninguna",
+        "false",
+        "-",
+        "no aplica",
+        "na",
+        "nada",
+    }
 
     def _generar_alertas(self, fila, expediente) -> int:
         """
@@ -406,29 +437,53 @@ class ProcesadorCarga:
         lleva su origen.
         """
         generadas = 0
-        for columna, (tipo, _servicio, plantilla) in mapping.REGLAS_ALERTA.items():
+        for columna, regla in mapping.REGLAS_ALERTA.items():
+            tipo, _servicio, plantilla = regla[:3]
+            columna_detalle = regla[3] if len(regla) > 3 else None
+            detalle = self._get(fila, columna_detalle) if columna_detalle else None
+            if detalle is not None and self._es_negacion(detalle):
+                detalle = None
+
             valor = self._get(fila, columna)
+            if (valor is None or str(valor).strip() == "") and detalle:
+                # Nombrar la enfermedad ya es declararla, aunque la casilla
+                # del «sí» venga vacía.
+                valor = "Sí"
             if valor is None or str(valor).strip() == "":
                 continue  # sin dato: ni se enciende ni se apaga
 
-            if str(valor).strip().lower() in self.NEGACIONES:
-                AlertaClinica.objects.filter(
-                    expediente=expediente,
-                    tipo=tipo,
-                    activa=True,
-                    origen=AlertaClinica.Origen.MATRICULA,
-                ).update(activa=False)
+            # Solo las de ESTA regla: varias comparten tipo.
+            propias = AlertaClinica.objects.filter(
+                expediente=expediente,
+                tipo=tipo,
+                origen=AlertaClinica.Origen.MATRICULA,
+                descripcion__startswith=plantilla.split("{")[0],
+            )
+            if self._es_negacion(valor):
+                propias.filter(activa=True).update(activa=False)
                 continue
 
-            descripcion = plantilla.format(valor=valor)
-            _, creada = AlertaClinica.objects.get_or_create(
+            descripcion = plantilla.format(
+                valor=valor, detalle=f": {str(detalle).strip()}" if detalle else ""
+            )
+            alerta, creada = AlertaClinica.objects.get_or_create(
                 expediente=expediente,
                 tipo=tipo,
                 descripcion=descripcion,
                 defaults={"activa": True, "origen": AlertaClinica.Origen.MATRICULA},
             )
-            generadas += 1 if creada else 0
+            if creada:
+                generadas += 1
+            elif not alerta.activa and alerta.origen == AlertaClinica.Origen.MATRICULA:
+                # Negada en un período y declarada de nuevo en el siguiente:
+                # antes `get_or_create` encontraba la apagada y la dejaba así.
+                alerta.activa = True
+                alerta.save(update_fields=["activa"])
+                generadas += 1
         return generadas
+
+    def _es_negacion(self, valor) -> bool:
+        return " ".join(str(valor).split()).lower() in self.NEGACIONES
 
 
 def servicios_por_codigo():

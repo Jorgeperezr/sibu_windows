@@ -165,6 +165,11 @@ FICHA_JSONB = {
         "estudiante_vacunas_covid",
         "estudiante_vacunas_hepatitis",
         "estudiante_vacunas_tetanos",
+        # Las cuatro que añadió la base de estudiantes de la UNL.
+        "tiene_enfermedad_catastrofica",
+        "enfermedades_catastroficas",
+        "tiene_enfermedad_rara_huerfana",
+        "necesita_ayuda_bienestar",
     ],
     "bienes_negocio": [
         "num_bienes",
@@ -241,7 +246,12 @@ NO_SE_CONSERVAN = (
 CONTROL = ["case", "case-2", "case-3"]
 
 # --- Reglas que disparan alertas hacia bandejas de servicios (sección 12.7) ---
-# columna origen -> (tipo de alerta, servicio destino, plantilla de descripción)
+# columna origen -> (tipo de alerta, servicio destino, plantilla de descripción
+#                    [, columna con el detalle])
+#
+# Cada regla reconoce SUS alertas por el comienzo fijo de la plantilla (lo que
+# va antes del primer «{»): varias reglas comparten tipo —discapacidad, consumo
+# y enfermedad rara son «riesgo»— y negar una no puede apagar las otras.
 REGLAS_ALERTA = {
     "violencia_familiar": ("social", "trabajo-social", "Violencia familiar declarada en matrícula"),
     "tipo_maltrato_recibido": ("social", "trabajo-social", "Maltrato reportado: {valor}"),
@@ -257,6 +267,27 @@ REGLAS_ALERTA = {
     "estudiante_gestacion": ("gestacion", "medicina", "Estado de gestación declarado"),
     "estudiante_lactancia": ("lactancia", "medicina", "Lactancia declarada en matrícula"),
     "droga_consume": ("riesgo", "psicologia", "Consumo declarado en matrícula"),
+    # El informe estadístico cuenta «enfermedad catastrófica» por las alertas de
+    # este tipo, y hasta ahora ninguna columna de la carga las creaba.
+    "tiene_enfermedad_catastrofica": (
+        "enf_catastrofica",
+        "medicina",
+        "Enfermedad catastrófica declarada en matrícula{detalle}",
+        "enfermedades_catastroficas",
+    ),
+    "tiene_enfermedad_rara_huerfana": (
+        "riesgo",
+        "medicina",
+        "Enfermedad rara o huérfana declarada en matrícula",
+    ),
+    # Quien marca que necesita ayuda de Bienestar lo está pidiendo: va a Trabajo
+    # Social, que es la puerta de entrada de la Unidad, en vez de quedarse en
+    # una columna que nadie lee.
+    "necesita_ayuda_bienestar": (
+        "social",
+        "trabajo-social",
+        "Pide ayuda de Bienestar en la matrícula",
+    ),
 }
 
 

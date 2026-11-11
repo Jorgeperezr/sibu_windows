@@ -192,6 +192,10 @@ def detalle(request, pk):
     contexto["servicio_de_ajuste"] = servicio
     contexto["valores_efectivos"] = valores_efectivos(expediente, servicio) if servicio else []
     contexto["no_ajustables"] = NO_AJUSTABLES
+    from . import salud_declarada
+
+    if salud_declarada.la_ve(request.user):
+        contexto["salud_declarada"] = salud_declarada.para_pantalla(expediente)
     return render(request, "expediente/detalle.html", contexto)
 
 

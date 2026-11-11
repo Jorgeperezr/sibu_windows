@@ -36,13 +36,19 @@ GRUPOS = [
     ("Residencia actual", "Persona (JSON)", mapping.PERSONA_JSONB["residencia_actual"]),
     ("Contacto de referencia", "Persona (JSON)", mapping.PERSONA_JSONB["contacto_referencia"]),
     ("Situación laboral", "Ficha socioeconómica", mapping.FICHA_JSONB["situacion_laboral"]),
-    ("Grupo familiar", "Ficha socioeconómica", mapping.FICHA_JSONB["grupo_familiar"]),
+    # Decía «Ficha socioeconómica» y la ficha no tiene dónde guardarlo: queda
+    # en la fila del período, que es lo que se consulta en el padrón.
+    ("Grupo familiar", "Fila del período", mapping.FICHA_JSONB["grupo_familiar"]),
     ("Convivencia", "Ficha socioeconómica", mapping.FICHA_JSONB["convivencia"]),
     ("Vivienda del estudiante", "Ficha socioeconómica", mapping.FICHA_JSONB["vivienda_estudiante"]),
     ("Vivienda familiar", "Ficha socioeconómica", mapping.FICHA_JSONB["vivienda_familiar"]),
     ("Salud familiar", "Ficha socioeconómica", mapping.FICHA_JSONB["salud_familiar"]),
-    ("Salud del estudiante", "Ficha socioeconómica", mapping.FICHA_JSONB["salud_estudiante"]),
-    ("Bienes y negocio", "Ficha socioeconómica", mapping.FICHA_JSONB["bienes_negocio"]),
+    (
+        "Salud del estudiante",
+        "Expediente (salud declarada)",
+        mapping.FICHA_JSONB["salud_estudiante"],
+    ),
+    ("Bienes y negocio", "Fila del período", mapping.FICHA_JSONB["bienes_negocio"]),
     ("Ingresos", "Ficha socioeconómica", mapping.FICHA_JSONB["ingresos"]),
     ("Egresos", "Ficha socioeconómica", mapping.FICHA_JSONB["egresos"]),
     ("Situaciones sensibles", "Solo genera la alerta; no se guarda", mapping.FICHA_SENSIBLE),

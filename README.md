@@ -273,7 +273,7 @@ guarda como PDF desde el navegador. El diagnóstico solo va si se marca.
 | [`docs/OPERACION.md`](docs/OPERACION.md) | Qué se ejecuta cada día y qué significa lo que responde. |
 | [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) | El control de acceso tal como está montado, y qué hacer al añadir un endpoint o una pantalla. |
 | [`docs/COMO_CARGAR_LA_BASE.md`](docs/COMO_CARGAR_LA_BASE.md) | La carga de la base institucional, paso a paso. |
-| [`docs/CARGA_BASE_INSTITUCIONAL.md`](docs/CARGA_BASE_INSTITUCIONAL.md) | El diccionario de las 157 columnas. |
+| [`docs/CARGA_BASE_INSTITUCIONAL.md`](docs/CARGA_BASE_INSTITUCIONAL.md) | El diccionario de las 161 columnas. |
 | [`docs/Informe_Tecnico_SIBU_UNL.md`](docs/Informe_Tecnico_SIBU_UNL.md) | Alcance, modelo de datos, requerimientos, flujos. |
 | [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) · [`docs/ORACLE_CLOUD.md`](docs/ORACLE_CLOUD.md) | El despliegue de servidor, para el SIBU central. |
 

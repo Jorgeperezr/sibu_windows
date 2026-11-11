@@ -249,6 +249,6 @@ Despliegue del servidor central (Oracle Cloud, capa gratuita) en
 
     ruff check .
     ruff format --check .
-    pytest apps -q          # deben pasar TODAS (1676 al día de hoy)
+    pytest apps -q          # deben pasar TODAS (1688 al día de hoy)
     python manage.py check
     python manage.py makemigrations --check --dry-run
